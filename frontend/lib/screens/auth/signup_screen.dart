@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../config/colors.dart';
 import '../../config/typography.dart';
+import '../../config/assets.dart';
+import '../../services/auth_service.dart';
+import '../../services/api_service.dart';
 
 class SignUpScreen extends StatefulWidget {
-  final void Function(bool isServiceProvider) onSignUpSuccess;
+  final void Function(bool isServiceProvider, {String? email}) onSignUpSuccess;
   const SignUpScreen({super.key, required this.onSignUpSuccess});
 
   @override
@@ -34,7 +37,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
     super.dispose();
   }
 
-  void _handleSignUp() {
+  final _authService = AuthService();
+
+  void _handleSignUp() async {
     if (!_formKey.currentState!.validate()) return;
     if (!_agreedToTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -46,10 +51,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
       return;
     }
     setState(() => _isLoading = true);
-    Future.delayed(const Duration(seconds: 2), () {
+    try {
+      await _authService.signUpWithEmail(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        displayName: _nameController.text.trim(),
+      );
+      // Sync user to MongoDB
+      try { await ApiService().post('/api/auth/sync'); } catch (_) {}
       if (mounted) {
         setState(() => _isLoading = false);
-        // Show success then navigate
         showDialog(
           context: context,
           barrierDismissible: false,
@@ -85,11 +96,49 @@ class _SignUpScreenState extends State<SignUpScreen> {
         Future.delayed(const Duration(seconds: 2), () {
           if (mounted) {
             Navigator.pop(context); // close dialog
-            widget.onSignUpSuccess(_selectedType == 1);
+            final userEmail = _authService.currentUser?.email ?? _emailController.text.trim();
+            widget.onSignUpSuccess(_selectedType == 1, email: userEmail);
           }
         });
       }
-    });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AuthService.getErrorMessage(e)),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  void _handleGoogleSignUp() async {
+    setState(() => _isLoading = true);
+    try {
+      final result = await _authService.signInWithGoogle();
+      if (result == null) {
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      }
+      try { await ApiService().post('/api/auth/sync'); } catch (_) {}
+      if (mounted) {
+        setState(() => _isLoading = false);
+        final userEmail = result.user?.email ?? '';
+        widget.onSignUpSuccess(_selectedType == 1, email: userEmail);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AuthService.getErrorMessage(e)),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -190,13 +239,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Container(
-                    width: 80,
-                    height: 80,
+                    width: 90,
+                    height: 90,
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(22),
                     ),
-                    child: const Icon(Icons.person_add_rounded, color: Colors.white, size: 44),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(22),
+                      child: Image.asset(
+                        AppAssets.logo,
+                        width: 90,
+                        height: 90,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 28),
                   Text(
@@ -288,13 +345,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
           ),
           const SizedBox(height: 16),
           Container(
-            width: 56,
-            height: 56,
+            width: 64,
+            height: 64,
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.15),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Icon(Icons.person_add_rounded, color: Colors.white, size: 30),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Image.asset(
+                AppAssets.logo,
+                width: 64,
+                height: 64,
+                fit: BoxFit.contain,
+              ),
+            ),
           ),
           const SizedBox(height: 14),
           Text(
@@ -597,7 +662,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
           // Social signup
           SizedBox(
             width: double.infinity,
-            child: _buildSocialButton(Icons.g_mobiledata_rounded, 'Google', const Color(0xFFEA4335)),
+            child: _buildSocialButton(Icons.g_mobiledata_rounded, 'Google', const Color(0xFFEA4335), onTap: _handleGoogleSignUp),
           ),
           const SizedBox(height: 28),
 
@@ -702,11 +767,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
-  Widget _buildSocialButton(IconData icon, String label, Color iconColor) {
+  Widget _buildSocialButton(IconData icon, String label, Color iconColor, {VoidCallback? onTap}) {
     return SizedBox(
       height: 48,
       child: OutlinedButton(
-        onPressed: () {},
+        onPressed: _isLoading ? null : onTap,
         style: OutlinedButton.styleFrom(
           side: const BorderSide(color: AppColors.border),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

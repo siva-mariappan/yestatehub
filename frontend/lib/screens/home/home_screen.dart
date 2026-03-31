@@ -2,18 +2,21 @@ import 'package:flutter/material.dart';
 import '../../config/colors.dart';
 import '../../config/typography.dart';
 import '../../config/responsive.dart';
-import '../../data/mock_data.dart';
 import '../../models/property.dart';
+import '../../services/property_store.dart';
 import '../../config/assets.dart';
 import '../../widgets/common/search_bar_widget.dart';
 import '../../widgets/common/intent_tabs.dart';
 import '../../widgets/common/property_card.dart';
 import '../../widgets/common/section_header.dart';
-import '../../widgets/common/featured_service_card.dart';
-import '../../widgets/common/small_service_card.dart';
 import '../../widgets/ads/ad_carousel.dart';
 import '../../widgets/footer/app_footer.dart';
 import '../property_detail/property_detail_screen.dart';
+import '../analytics/analytics_screen.dart';
+import '../chat/chat_screen.dart';
+import '../dashboard/user_dashboard.dart';
+import '../notifications/notifications_screen.dart';
+import '../add_property/add_property_wizard.dart';
 // import 'widgets/hero_section.dart'; // Removed
 import 'widgets/quick_filters.dart';
 import 'widgets/city_selector.dart';
@@ -22,12 +25,14 @@ class HomeScreen extends StatefulWidget {
   final Function(int)? onNavigate;
   final int selectedIntent;
   final ValueChanged<int>? onIntentChanged;
+  final bool isAdmin;
 
   const HomeScreen({
     super.key,
     this.onNavigate,
     this.selectedIntent = 0,
     this.onIntentChanged,
+    this.isAdmin = false,
   });
 
   @override
@@ -36,6 +41,23 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   String _selectedCity = 'Hyderabad';
+  final PropertyStore _store = PropertyStore.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _store.addListener(_onStoreChanged);
+  }
+
+  @override
+  void dispose() {
+    _store.removeListener(_onStoreChanged);
+    super.dispose();
+  }
+
+  void _onStoreChanged() {
+    if (mounted) setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -56,98 +78,121 @@ class _HomeScreenState extends State<HomeScreen> {
         // Intent Tabs
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
             child: IntentTabs(
               selectedIndex: widget.selectedIntent,
               onTabChanged: (i) => widget.onIntentChanged?.call(i),
             ),
           ),
         ),
+        // ─── Ad Carousel (right after header) ────────────────────────
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: AdCarousel(isAdmin: widget.isAdmin, mobileHeight: 200, desktopHeight: 420),
+            ),
+          ),
+        ),
+        // ─── Quick Actions Row ────────────────────────────────────
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: _buildMobileQuickActions(),
+          ),
+        ),
         // Featured Listings Header
         const SliverToBoxAdapter(
           child: Padding(
-            padding: EdgeInsets.only(top: 24, bottom: 12),
+            padding: EdgeInsets.only(top: 8, bottom: 12),
             child: SectionHeader(title: 'Featured Listings', actionText: 'See All'),
           ),
         ),
         // Featured Listings
-        SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          sliver: SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: PropertyCard(
-                    property: MockData.featuredProperties[index],
-                    onTap: () => _openPropertyDetail(context, MockData.featuredProperties[index]),
-                  ),
-                );
-              },
-              childCount: MockData.featuredProperties.length,
-            ),
-          ),
-        ),
-        // ─── Home Services Section ─────────────────────────────────
-        const SliverToBoxAdapter(
-          child: Padding(
-            padding: EdgeInsets.only(top: 16, bottom: 12),
-            child: SectionHeader(title: 'Home Services', actionText: 'See All'),
-          ),
-        ),
-        // Featured Service Cards
-        SliverToBoxAdapter(
-          child: SizedBox(
-            height: 165,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              itemCount: MockData.featuredServices.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 14),
-              itemBuilder: (context, index) {
-                return SizedBox(
-                  width: 280,
-                  child: FeaturedServiceCard(
-                    service: MockData.featuredServices[index],
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
-        const SliverToBoxAdapter(child: SizedBox(height: 20)),
-        // Small Service Cards
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
-          sliver: SliverGrid(
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 4,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 0.75,
-            ),
-            delegate: SliverChildBuilderDelegate(
-              (context, index) => SmallServiceCard(
-                service: MockData.services[index],
+        if (_store.properties.isEmpty)
+          SliverToBoxAdapter(
+            child: _buildEmptyListingsState(context),
+          )
+        else
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: PropertyCard(
+                      property: _store.properties[index],
+                      onTap: () => _openPropertyDetail(context, _store.properties[index]),
+                    ),
+                  );
+                },
+                childCount: _store.properties.length,
               ),
-              childCount: MockData.services.length.clamp(0, 8),
             ),
           ),
-        ),
-        // ─── Ad Carousel ───────────────────────────────────────────
-        const SliverToBoxAdapter(
-          child: Padding(
-            padding: EdgeInsets.only(top: 8, bottom: 12),
-            child: SectionHeader(title: 'Sponsored', actionText: ''),
-          ),
-        ),
-        SliverToBoxAdapter(
-          child: AdCarousel(ads: mockAds, height: 480),
-        ),
         const SliverToBoxAdapter(child: SizedBox(height: 16)),
         // Footer
         const SliverToBoxAdapter(child: AppFooter()),
       ],
+    );
+  }
+
+  Widget _buildMobileQuickActions() {
+    final actions = [
+      _QuickAction(Icons.insights_rounded, 'EstateIQ', AppColors.primary, () {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const AnalyticsScreen()));
+      }),
+      _QuickAction(Icons.chat_bubble_outline_rounded, 'Messages', const Color(0xFF3B82F6), () {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatScreen()));
+      }),
+      _QuickAction(Icons.dashboard_outlined, 'Dashboard', const Color(0xFF8B5CF6), () {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const UserDashboard()));
+      }),
+      _QuickAction(Icons.notifications_none_rounded, 'Alerts', const Color(0xFFD97706), () {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen()));
+      }),
+      _QuickAction(Icons.add_home_outlined, 'Sell/Rent', const Color(0xFFEF4444), () {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const AddPropertyWizard()));
+      }),
+    ];
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: actions.map((action) {
+        return Expanded(
+          child: GestureDetector(
+            onTap: action.onTap,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: action.color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(action.icon, size: 24, color: action.color),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  action.label,
+                  style: AppTypography.labelSmall.copyWith(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 10,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -173,9 +218,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildDesktopHome() {
     final hPad = Responsive.value<double>(context, mobile: 20, tablet: 24, desktop: 40);
     final gridCols = Responsive.value<int>(context, mobile: 1, tablet: 2, desktop: 4);
-    final serviceGridCols = Responsive.value<int>(context, mobile: 3, tablet: 4, desktop: 5);
-
-    final adHeight = Responsive.value<double>(context, mobile: 480, tablet: 500, desktop: 520);
 
     return SingleChildScrollView(
       child: Column(
@@ -204,39 +246,8 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-          // Services strip (scrollable)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            color: AppColors.surface,
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1360),
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: hPad),
-                  child: SizedBox(
-                    height: 42,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      children: [
-                        _buildServiceChip(Icons.home_work_outlined, 'Home Loan'),
-                        _buildServiceChip(Icons.description_outlined, 'Rental Agreement'),
-                        _buildServiceChip(Icons.local_shipping_outlined, 'Packers & Movers'),
-                        _buildServiceChip(Icons.cleaning_services_outlined, 'Home Cleaning'),
-                        _buildServiceChip(Icons.format_paint_outlined, 'Home Painting'),
-                        _buildServiceChip(Icons.chair_outlined, 'Interior Design'),
-                        _buildServiceChip(Icons.gavel_outlined, 'Legal Help'),
-                        _buildServiceChip(Icons.plumbing_outlined, 'Home Repair'),
-                        _buildServiceChip(Icons.explore_outlined, 'Vastu Consulting'),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
           // Ad carousel (full width)
-          AdCarousel(ads: mockAds, height: adHeight),
+          AdCarousel(isAdmin: widget.isAdmin, desktopHeight: 520, mobileHeight: 420),
           // Content area
           Center(
             child: ConstrainedBox(
@@ -254,18 +265,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       padding: EdgeInsets.zero,
                     ),
                     const SizedBox(height: 20),
-                    _buildListingsGrid(gridCols),
-                    const SizedBox(height: 40),
-                    // ─── Home Services ─────────────────────────────
-                    const SectionHeader(
-                      title: 'Home Services',
-                      actionText: 'See All',
-                      padding: EdgeInsets.zero,
-                    ),
-                    const SizedBox(height: 20),
-                    _buildFeaturedServices(),
-                    const SizedBox(height: 24),
-                    _buildServicesGrid(serviceGridCols),
+                    _store.properties.isEmpty
+                        ? _buildEmptyListingsState(context)
+                        : _buildListingsGrid(gridCols),
                     const SizedBox(height: 48),
                   ],
                 ),
@@ -274,6 +276,31 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const AppFooter(),
         ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyListingsState(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      height: 350,
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.image_rounded, size: 56, color: const Color(0xFFCBD5E1)),
+            const SizedBox(height: 12),
+            Text(
+              'Properties Space',
+              style: AppTypography.bodyLarge.copyWith(color: const Color(0xFF94A3B8)),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -288,45 +315,13 @@ class _HomeScreenState extends State<HomeScreen> {
         mainAxisSpacing: 20,
         childAspectRatio: columns == 1 ? 0.85 : columns == 2 ? 0.68 : 0.72,
       ),
-      itemCount: MockData.featuredProperties.length.clamp(0, 12),
+      itemCount: _store.properties.length.clamp(0, 12),
       itemBuilder: (context, index) {
         return PropertyCard(
-          property: MockData.featuredProperties[index],
-          onTap: () => _openPropertyDetail(context, MockData.featuredProperties[index]),
+          property: _store.properties[index],
+          onTap: () => _openPropertyDetail(context, _store.properties[index]),
         );
       },
-    );
-  }
-
-  Widget _buildFeaturedServices() {
-    return Row(
-      children: MockData.featuredServices.map((service) {
-        return Expanded(
-          child: Padding(
-            padding: EdgeInsets.only(
-              right: service == MockData.featuredServices.last ? 0 : 16,
-            ),
-            child: FeaturedServiceCard(service: service),
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildServicesGrid(int columns) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: columns,
-        crossAxisSpacing: 14,
-        mainAxisSpacing: 14,
-        childAspectRatio: 0.8,
-      ),
-      itemCount: MockData.services.length,
-      itemBuilder: (context, index) => SmallServiceCard(
-        service: MockData.services[index],
-      ),
     );
   }
 
@@ -367,4 +362,13 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+}
+
+class _QuickAction {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _QuickAction(this.icon, this.label, this.color, this.onTap);
 }

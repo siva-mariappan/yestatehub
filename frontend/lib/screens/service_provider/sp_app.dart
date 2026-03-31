@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../config/colors.dart';
 import '../../config/typography.dart';
+import '../../config/assets.dart';
 import '../../config/responsive.dart';
 import 'sp_home_screen.dart';
 import 'sp_bookings_screen.dart';
@@ -24,297 +26,377 @@ class _SpAppState extends State<SpApp> {
   @override
   Widget build(BuildContext context) {
     final isMobile = Responsive.isMobile(context);
+    final isTablet = Responsive.isTablet(context);
+
+    if (isMobile) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        body: IndexedStack(
+          index: _currentTab,
+          children: [
+            const SpHomeScreen(),
+            const SpBookingsScreen(),
+            const SpMyServicesScreen(),
+            const SpEarningsScreen(),
+            SpProfileScreen(onLogout: widget.onLogout),
+          ],
+        ),
+        bottomNavigationBar: _buildBottomNav(),
+      );
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Column(
+      body: Row(
         children: [
-          if (!isMobile) _buildHeader(),
+          _buildSidebar(),
           Expanded(
-            child: IndexedStack(
-              index: _currentTab,
+            child: Column(
               children: [
-                const SpHomeScreen(),
-                const SpBookingsScreen(),
-                const SpMyServicesScreen(),
-                const SpEarningsScreen(),
-                SpProfileScreen(onLogout: widget.onLogout),
+                _buildTopBar(),
+                Expanded(
+                  child: IndexedStack(
+                    index: _currentTab,
+                    children: [
+                      const SpHomeScreen(),
+                      const SpBookingsScreen(),
+                      const SpMyServicesScreen(),
+                      const SpEarningsScreen(),
+                      SpProfileScreen(onLogout: widget.onLogout),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
         ],
       ),
-      bottomNavigationBar: isMobile ? _buildBottomNav() : null,
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildSidebar() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 0),
+      width: 240,
       decoration: BoxDecoration(
         color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: Border(
+          right: BorderSide(color: AppColors.border.withOpacity(0.5), width: 1),
+        ),
       ),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1360),
-          child: SizedBox(
-            height: 64,
-            child: Row(
-              children: [
-                // Logo
-                _buildLogo(),
-                const SizedBox(width: 48),
-                // Nav links
-                ..._buildNavLinks(),
-                const Spacer(),
-                // Search
-                _buildHeaderSearch(),
-                const SizedBox(width: 16),
-                // Chat
-                _buildHeaderIcon(
-                  Icons.chat_bubble_outline_rounded,
-                  () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SpChatScreen())),
-                  hasBadge: true,
-                ),
-                const SizedBox(width: 10),
-                // Notification
-                _buildNotificationBell(),
-                const SizedBox(width: 12),
-                // Avatar
-                _buildHeaderAvatar(),
-              ],
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: _buildLogoSmall(),
+          ),
+          Divider(height: 1, color: AppColors.border.withOpacity(0.3)),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: _buildUserCard(),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: Column(
+                children: [
+                  _buildSidebarNavItem(0, Icons.home_rounded, 'Home'),
+                  _buildSidebarNavItem(1, Icons.calendar_month_rounded, 'Bookings'),
+                  _buildSidebarNavItem(2, Icons.home_repair_service_rounded, 'Services'),
+                  _buildSidebarNavItem(3, Icons.account_balance_wallet_rounded, 'Earnings'),
+                ],
+              ),
             ),
           ),
-        ),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: SizedBox(
+              width: double.infinity,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: widget.onLogout,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.errorLight.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.error.withOpacity(0.2)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.logout_rounded, size: 18, color: AppColors.error),
+                        const SizedBox(width: 8),
+                        Text('Sign Out', style: AppTypography.labelMedium.copyWith(color: AppColors.error, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildLogo() {
-    return Row(
-      children: [
-        Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF10B981), Color(0xFF059669)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+  Widget _buildLogoSmall() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.asset(
+              AppAssets.logo,
+              width: 32,
+              height: 32,
+              fit: BoxFit.contain,
             ),
-            borderRadius: BorderRadius.circular(11),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primary.withOpacity(0.3),
-                blurRadius: 8,
-                offset: const Offset(0, 3),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('YEstateHub', style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w700, fontSize: 11)),
+                Text('PRO', style: AppTypography.labelSmall.copyWith(color: AppColors.primary, fontSize: 8, fontWeight: FontWeight.w700)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.primaryExtraLight,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: AppColors.primary,
+                child: Text((FirebaseAuth.instance.currentUser?.displayName ?? 'U').substring(0, 1).toUpperCase(), style: AppTypography.labelLarge.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(FirebaseAuth.instance.currentUser?.displayName ?? 'User', style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w700)),
+                    Row(
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(color: Color(0xFF10B981), shape: BoxShape.circle),
+                        ),
+                        const SizedBox(width: 4),
+                        Text('Online', style: AppTypography.labelSmall.copyWith(color: AppColors.primary, fontSize: 10)),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
-          child: const Icon(Icons.home_work_rounded, color: Colors.white, size: 20),
-        ),
-        const SizedBox(width: 12),
-        Text(
-          'YEstateHub',
-          style: AppTypography.headingSmall.copyWith(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.3,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF10B981), Color(0xFF059669)],
-            ),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(
-            'PRO',
-            style: AppTypography.labelSmall.copyWith(
-              color: Colors.white,
-              fontSize: 9,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.2,
-            ),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  List<Widget> _buildNavLinks() {
-    final links = [
-      {'label': 'Home', 'icon': Icons.home_rounded},
-      {'label': 'Bookings', 'icon': Icons.calendar_month_rounded},
-      {'label': 'Services', 'icon': Icons.home_repair_service_rounded},
-      {'label': 'Earnings', 'icon': Icons.account_balance_wallet_rounded},
-    ];
-    return links.asMap().entries.map((entry) {
-      final isActive = _currentTab == entry.key;
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 2),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () => setState(() => _currentTab = entry.key),
-            borderRadius: BorderRadius.circular(10),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                color: isActive ? AppColors.primaryExtraLight : Colors.transparent,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: isActive ? AppColors.primary.withOpacity(0.15) : Colors.transparent,
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    entry.value['icon'] as IconData,
-                    size: 16,
-                    color: isActive ? AppColors.primary : AppColors.textTertiary,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    entry.value['label'] as String,
+  Widget _buildSidebarNavItem(int index, IconData icon, String label) {
+    final isActive = _currentTab == index;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => setState(() => _currentTab = index),
+          borderRadius: BorderRadius.circular(12),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: isActive ? AppColors.primaryExtraLight : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+              border: isActive ? Border.all(color: AppColors.primary.withOpacity(0.3)) : null,
+            ),
+            child: Row(
+              children: [
+                Icon(icon, size: 20, color: isActive ? AppColors.primary : AppColors.textSecondary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    label,
                     style: AppTypography.labelMedium.copyWith(
                       color: isActive ? AppColors.primary : AppColors.textSecondary,
                       fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
                     ),
                   ),
-                ],
-              ),
+                ),
+                if (isActive)
+                  Container(
+                    width: 3,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+              ],
             ),
           ),
         ),
-      );
-    }).toList();
+      ),
+    );
   }
 
-  Widget _buildHeaderSearch() {
+  Widget _buildTopBar() {
     return Container(
-      width: 200,
-      height: 40,
-      padding: const EdgeInsets.symmetric(horizontal: 14),
+      height: 60,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 0),
       decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border.withOpacity(0.5)),
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(color: AppColors.border.withOpacity(0.5), width: 1),
+        ),
       ),
       child: Row(
         children: [
-          Icon(Icons.search_rounded, size: 18, color: AppColors.textTertiary),
-          const SizedBox(width: 8),
-          Text('Search...', style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiary)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeaderIcon(IconData icon, VoidCallback onTap, {bool hasBadge = false}) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            color: AppColors.background,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.border.withOpacity(0.5)),
-          ),
-          child: Stack(
-            children: [
-              Center(child: Icon(icon, size: 20, color: AppColors.textPrimary)),
-              if (hasBadge)
-                Positioned(
-                  right: 9,
-                  top: 9,
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: AppColors.info,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 1.5),
-                    ),
-                  ),
+          SizedBox(
+            width: 220,
+            child: TextField(
+              decoration: InputDecoration(
+                hintText: 'Search...',
+                hintStyle: AppTypography.bodySmall.copyWith(color: AppColors.textTertiary),
+                prefixIcon: Icon(Icons.search_rounded, size: 18, color: AppColors.textTertiary),
+                contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(color: AppColors.border.withOpacity(0.5)),
                 ),
-            ],
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(color: AppColors.border.withOpacity(0.5)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(color: AppColors.primary, width: 1.5),
+                ),
+                filled: true,
+                fillColor: AppColors.background,
+              ),
+            ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNotificationBell() {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SpNotificationsScreen())),
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            color: AppColors.background,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.border.withOpacity(0.5)),
-          ),
-          child: Stack(
-            children: [
-              const Center(child: Icon(Icons.notifications_outlined, size: 22, color: AppColors.textPrimary)),
-              Positioned(
-                right: 9,
-                top: 9,
-                child: Container(
-                  width: 9,
-                  height: 9,
-                  decoration: BoxDecoration(
-                    color: AppColors.error,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 1.5),
-                  ),
+          const Spacer(),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SpChatScreen())),
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.border.withOpacity(0.5)),
+                ),
+                child: Stack(
+                  children: [
+                    Center(child: Icon(Icons.chat_bubble_outline_rounded, size: 20, color: AppColors.textPrimary)),
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: AppColors.info,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 1.5),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeaderAvatar() {
-    return GestureDetector(
-      onTap: () => setState(() => _currentTab = 4),
-      child: Container(
-        padding: const EdgeInsets.all(2.5),
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: _currentTab == 4 ? AppColors.primary : AppColors.border,
-            width: 2,
+          const SizedBox(width: 12),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SpNotificationsScreen())),
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.border.withOpacity(0.5)),
+                ),
+                child: Stack(
+                  children: [
+                    Center(child: Icon(Icons.notifications_outlined, size: 22, color: AppColors.textPrimary)),
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        width: 16,
+                        height: 16,
+                        decoration: BoxDecoration(
+                          color: AppColors.error,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 1.5),
+                        ),
+                        child: Center(
+                          child: Text('3', style: AppTypography.labelSmall.copyWith(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w700)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
-        ),
-        child: CircleAvatar(
-          radius: 17,
-          backgroundColor: AppColors.primaryExtraLight,
-          child: Text('J', style: AppTypography.labelMedium.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700)),
-        ),
+          const SizedBox(width: 12),
+          GestureDetector(
+            onTap: () => setState(() => _currentTab = 4),
+            child: Container(
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: _currentTab == 4 ? AppColors.primary : AppColors.border,
+                  width: 2,
+                ),
+              ),
+              child: CircleAvatar(
+                radius: 18,
+                backgroundColor: AppColors.primaryExtraLight,
+                child: Text('J', style: AppTypography.labelMedium.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700)),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -333,15 +415,15 @@ class _SpAppState extends State<SpApp> {
       ),
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildNavItem(0, Icons.home_rounded, Icons.home_outlined, 'Home'),
-              _buildNavItem(1, Icons.calendar_month_rounded, Icons.calendar_month_outlined, 'Bookings'),
-              _buildNavItem(2, Icons.home_repair_service_rounded, Icons.home_repair_service_outlined, 'Services'),
-              _buildNavItem(3, Icons.account_balance_wallet_rounded, Icons.account_balance_wallet_outlined, 'Earnings'),
-              _buildNavItem(4, Icons.person_rounded, Icons.person_outline_rounded, 'Profile'),
+              _buildMobileNavItem(0, Icons.home_rounded, Icons.home_outlined, 'Home'),
+              _buildMobileNavItem(1, Icons.calendar_month_rounded, Icons.calendar_month_outlined, 'Bookings'),
+              _buildMobileNavItem(2, Icons.home_repair_service_rounded, Icons.home_repair_service_outlined, 'Services'),
+              _buildMobileNavItem(3, Icons.account_balance_wallet_rounded, Icons.account_balance_wallet_outlined, 'Earnings'),
+              _buildMobileNavItem(4, Icons.person_rounded, Icons.person_outline_rounded, 'Profile'),
             ],
           ),
         ),
@@ -349,7 +431,7 @@ class _SpAppState extends State<SpApp> {
     );
   }
 
-  Widget _buildNavItem(int index, IconData activeIcon, IconData inactiveIcon, String label) {
+  Widget _buildMobileNavItem(int index, IconData activeIcon, IconData inactiveIcon, String label) {
     final isActive = _currentTab == index;
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmall = screenWidth < 380;
@@ -360,8 +442,8 @@ class _SpAppState extends State<SpApp> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: EdgeInsets.symmetric(
-          horizontal: isActive ? (isSmall ? 10 : 14) : (isSmall ? 8 : 12),
-          vertical: 8,
+          horizontal: isActive ? (isSmall ? 12 : 16) : (isSmall ? 8 : 10),
+          vertical: 10,
         ),
         decoration: BoxDecoration(
           color: isActive ? AppColors.primaryExtraLight : Colors.transparent,

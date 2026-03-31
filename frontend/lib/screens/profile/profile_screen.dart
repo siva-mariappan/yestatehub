@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../config/colors.dart';
 import '../../config/typography.dart';
 import '../../config/responsive.dart';
 
 class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
+  final VoidCallback? onLogout;
+  const ProfileScreen({super.key, this.onLogout});
 
   @override
   Widget build(BuildContext context) {
@@ -34,14 +36,14 @@ class ProfileScreen extends StatelessWidget {
                         radius: 40,
                         backgroundColor: AppColors.primaryLight,
                         child: Text(
-                          'P',
+                          (FirebaseAuth.instance.currentUser?.displayName ?? 'U').substring(0, 1).toUpperCase(),
                           style: AppTypography.displayMedium.copyWith(color: AppColors.primary),
                         ),
                       ),
                       const SizedBox(height: 12),
-                      Text('JSV', style: AppTypography.headingMedium),
+                      Text(FirebaseAuth.instance.currentUser?.displayName ?? 'User', style: AppTypography.headingMedium),
                       const SizedBox(height: 4),
-                      Text('jsv@gmail.com', style: AppTypography.bodySmall),
+                      Text(FirebaseAuth.instance.currentUser?.email ?? '', style: AppTypography.bodySmall),
                       const SizedBox(height: 16),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -80,7 +82,7 @@ class ProfileScreen extends StatelessWidget {
                   width: double.infinity,
                   height: 50,
                   child: OutlinedButton.icon(
-                    onPressed: () {},
+                    onPressed: onLogout,
                     icon: const Icon(Icons.logout, size: 18, color: AppColors.error),
                     label: Text(
                       'Sign Out',

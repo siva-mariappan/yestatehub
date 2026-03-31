@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'config/colors.dart';
+import 'config/typography.dart';
 import 'config/responsive.dart';
+import 'services/auth_service.dart';
 import 'screens/home/home_screen.dart';
 import 'screens/search/search_screen.dart';
 import 'screens/saved/saved_screen.dart';
@@ -30,16 +32,19 @@ class YEstateHubApp extends StatefulWidget {
 }
 
 class _YEstateHubAppState extends State<YEstateHubApp> {
-  // Flow state: splash -> onboarding -> auth -> main / serviceProvider
+  // Flow state: splash -> onboarding -> auth -> main / serviceProvider / admin
   _AppState _appState = _AppState.splash;
   bool _isServiceProvider = false;
   int _currentTab = 0;
   int _selectedIntent = 0;
 
-  // Simulated logged-in user (change to yestatehub@gmail.com for admin)
-  final String _currentUserEmail = 'jsv@gmail.com';
+  // Admin email — only this email gets the admin panel
+  static const String _adminEmail = 'yestatehub@gmail.com';
 
-  bool get _isAdmin => _currentUserEmail == 'yestatehub@gmail.com';
+  // Real logged-in user email from Firebase
+  String _currentUserEmail = '';
+
+  bool get _isAdmin => _currentUserEmail.toLowerCase() == _adminEmail;
 
   @override
   Widget build(BuildContext context) {
@@ -54,18 +59,20 @@ class _YEstateHubAppState extends State<YEstateHubApp> {
         );
       case _AppState.auth:
         return LoginScreen(
-          onLoginSuccess: (isServiceProvider) => setState(() {
+          onLoginSuccess: (isServiceProvider, {String? email}) => setState(() {
+            _currentUserEmail = email ?? AuthService().currentUser?.email ?? '';
             _isServiceProvider = isServiceProvider;
-            _appState = isServiceProvider ? _AppState.serviceProvider : _AppState.main;
+            // Admin and regular users both go to main app
+            // Admin can access admin panel via header icon
+            if (isServiceProvider && _currentUserEmail.toLowerCase() != _adminEmail) {
+              _appState = _AppState.serviceProvider;
+            } else {
+              _appState = _AppState.main;
+            }
           }),
         );
       case _AppState.serviceProvider:
-        return SpApp(
-          onLogout: () => setState(() {
-            _appState = _AppState.auth;
-            _isServiceProvider = false;
-          }),
-        );
+        return SpApp(onLogout: () => _handleLogout());
       case _AppState.main:
         return _buildMainApp(context);
     }
@@ -99,16 +106,31 @@ class _YEstateHubAppState extends State<YEstateHubApp> {
                   onNavigate: (index) => setState(() => _currentTab = index),
                   selectedIntent: _selectedIntent,
                   onIntentChanged: (i) => _handleIntentTap(context, i),
+                  isAdmin: _isAdmin,
                 ),
                 const SearchScreen(),
                 const SavedScreen(),
                 const ServicesScreen(),
-                const ProfileScreen(),
+                ProfileScreen(onLogout: _handleLogout),
               ],
             ),
           ),
         ],
       ),
+      // Floating admin button — mobile only, admin only
+      floatingActionButton: (isMobile && _isAdmin)
+          ? FloatingActionButton(
+              onPressed: () => _pushScreen(
+                context,
+                OwnerAdminScreen(
+                  onLogout: _handleLogout,
+                  onViewAsUser: () => Navigator.pop(context),
+                ),
+              ),
+              backgroundColor: AppColors.primary,
+              child: const Icon(Icons.admin_panel_settings_rounded, color: Colors.white),
+            )
+          : null,
       // Bottom nav — mobile only
       bottomNavigationBar: isMobile
           ? AppBottomNav(
@@ -130,7 +152,7 @@ class _YEstateHubAppState extends State<YEstateHubApp> {
         _pushScreen(context, const SearchPage());
         break;
       case 2:
-        _pushScreen(context, const UserDashboard());
+        _pushScreen(context, UserDashboard(onLogout: _handleLogout));
         break;
       case 3:
         _pushScreen(context, const ChatScreen());
@@ -140,7 +162,13 @@ class _YEstateHubAppState extends State<YEstateHubApp> {
         break;
       case 5:
         if (_isAdmin) {
-          _pushScreen(context, const OwnerAdminScreen());
+          _pushScreen(
+            context,
+            OwnerAdminScreen(
+              onLogout: _handleLogout,
+              onViewAsUser: () => Navigator.pop(context),
+            ),
+          );
         }
         break;
       case 6:
@@ -163,6 +191,21 @@ class _YEstateHubAppState extends State<YEstateHubApp> {
   void _pushScreen(BuildContext context, Widget screen) {
     Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
   }
+
+  void _handleLogout() async {
+    await AuthService().signOut();
+    // Pop all pushed routes so we return to the root widget
+    if (mounted) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    }
+    setState(() {
+      _appState = _AppState.auth;
+      _isServiceProvider = false;
+      _currentUserEmail = '';
+      _currentTab = 0;
+    });
+  }
+
 }
 
 enum _AppState { splash, onboarding, auth, main, serviceProvider }

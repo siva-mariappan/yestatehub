@@ -1,0 +1,221 @@
+================================================================================
+           YEstateHub - Firebase Authentication Setup Guide
+================================================================================
+
+This guide walks you through setting up Firebase Authentication with
+Google Sign-In for the YEstateHub Flutter web application.
+
+Your Firebase Project: yestatehub-jsv2026project
+Your GCP Project Number: 643297373393
+
+================================================================================
+PART 1: ENABLE AUTHENTICATION METHODS IN FIREBASE
+================================================================================
+
+Step 1: Open Firebase Console
+   - Go to https://console.firebase.google.com
+   - Select your project "yestatehub-jsv2026project"
+
+Step 2: Enable Email/Password Authentication
+   - Click "Authentication" in the left sidebar (under Build)
+   - Click the "Sign-in method" tab
+   - Click "Email/Password"
+   - Toggle "Enable" to ON
+   - (Optional) Toggle "Email link (passwordless sign-in)" if you want
+   - Click "Save"
+
+Step 3: Enable Google Sign-In
+   - Still on the "Sign-in method" tab
+   - Click "Google"
+   - Toggle "Enable" to ON
+   - Set "Project support email" to your email (e.g., yestatehub@gmail.com)
+   - Click "Save"
+   - NOTE: This automatically creates an OAuth 2.0 Web Client in Google Cloud
+
+================================================================================
+PART 2: GET YOUR OAUTH 2.0 WEB CLIENT ID (Required for Google Sign-In on Web)
+================================================================================
+
+Step 4: Open Google Cloud Console Credentials
+   - Go to: https://console.cloud.google.com/apis/credentials?project=yestatehub-jsv2026project
+   - Or: Google Cloud Console → APIs & Services → Credentials
+   - Make sure the correct project is selected at the top
+
+Step 5: Find or Create the OAuth 2.0 Client ID
+
+   IF a "Web client" already exists (Firebase auto-creates one in Step 3):
+   - Under "OAuth 2.0 Client IDs", click on "Web client (auto created by Google Service)"
+   - Copy the "Client ID" value
+     It looks like: 643297373393-xxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com
+
+   IF no Web client exists, create one:
+   - Click "+ CREATE CREDENTIALS" at the top
+   - Select "OAuth client ID"
+   - Application type: "Web application"
+   - Name: "YEstateHub Web Client"
+   - Click "Create"
+   - Copy the "Client ID" from the popup
+
+Step 6: Add Authorized JavaScript Origins
+   - Click on your Web client to edit it
+   - Under "Authorized JavaScript origins", click "ADD URI" and add ALL of these:
+
+     http://localhost
+     http://localhost:5000
+     http://localhost:8080
+     http://localhost:3000
+
+   - NOTE: Flutter Web uses random ports. If you get an "origin mismatch" error,
+     check the browser URL bar for the port number and add it here.
+   - For production, also add your deployed domain (e.g., https://yestatehub.com)
+   - Click "Save"
+
+================================================================================
+PART 3: UPDATE YOUR FLUTTER PROJECT FILES
+================================================================================
+
+Step 7: Update web/index.html with your OAuth Client ID
+   - Open: frontend/web/index.html
+   - Find this line (around line 13):
+
+     <meta name="google-signin-client_id" content="643297373393-REPLACE_THIS.apps.googleusercontent.com">
+
+   - Replace "643297373393-REPLACE_THIS.apps.googleusercontent.com" with your
+     ACTUAL Client ID from Step 5
+
+   Example:
+     <meta name="google-signin-client_id" content="643297373393-abc123def456.apps.googleusercontent.com">
+
+Step 8: Verify Firebase Config in main.dart
+   - Open: frontend/lib/main.dart
+   - Confirm these values match your Firebase project (already configured):
+
+     apiKey: 'AIzaSyAXpnuS7HHP4qoUxIs0W2Z_QOv6ifSy-18'
+     appId: '1:643297373393:web:6df5992fba47584d8aa9f0'
+     messagingSenderId: '643297373393'
+     projectId: 'yestatehub-jsv2026project'
+     authDomain: 'yestatehub-jsv2026project.firebaseapp.com'
+     storageBucket: 'yestatehub-jsv2026project.firebasestorage.app'
+
+Step 9: Verify Firebase SDK in web/index.html
+   - Confirm these script tags are present in <body> (already configured):
+
+     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+     <script>
+       firebase.initializeApp({
+         apiKey: "AIzaSyAXpnuS7HHP4qoUxIs0W2Z_QOv6ifSy-18",
+         authDomain: "yestatehub-jsv2026project.firebaseapp.com",
+         projectId: "yestatehub-jsv2026project",
+         storageBucket: "yestatehub-jsv2026project.firebasestorage.app",
+         messagingSenderId: "643297373393",
+         appId: "1:643297373393:web:6df5992fba47584d8aa9f0"
+       });
+     </script>
+
+================================================================================
+PART 4: CONFIGURE OAUTH CONSENT SCREEN (If Not Already Done)
+================================================================================
+
+Step 10: Set Up OAuth Consent Screen
+   - Go to: https://console.cloud.google.com/apis/credentials/consent?project=yestatehub-jsv2026project
+   - If prompted, select "External" user type → Create
+   - Fill in:
+     App name: YEstateHub
+     User support email: yestatehub@gmail.com
+     Developer contact email: yestatehub@gmail.com
+   - Click "Save and Continue"
+   - On "Scopes" page: Click "Add or Remove Scopes"
+     Select: email, profile, openid
+     Click "Update" → "Save and Continue"
+   - On "Test users" page: Add your test email addresses
+     (e.g., yestatehub@gmail.com, your personal email)
+     Click "Add" → "Save and Continue"
+   - Click "Back to Dashboard"
+
+   IMPORTANT: While in "Testing" mode, only test users you added can sign in.
+   To allow anyone to sign in, click "PUBLISH APP" on the consent screen dashboard.
+
+================================================================================
+PART 5: TEST THE AUTHENTICATION
+================================================================================
+
+Step 11: Run the App
+   cd frontend
+   flutter run -d chrome
+
+Step 12: Test Email/Password Login
+   - On the login screen, enter a valid email and password (min 6 characters)
+   - Click "Sign In"
+   - If account doesn't exist, go to Sign Up first to create one
+   - Admin login: use yestatehub@gmail.com → routes to admin panel
+
+Step 13: Test Google Sign-In
+   - Click the "Google" button on the login screen
+   - A Google popup will appear asking you to select an account
+   - Select your Google account
+   - You should be logged in and redirected to the home screen
+   - If you see "Access blocked" error, check:
+     a) OAuth Client ID is correct in index.html
+     b) Authorized JavaScript origins include your localhost URL
+     c) OAuth consent screen is configured (Step 10)
+     d) Your email is added as a test user (if app is in Testing mode)
+
+================================================================================
+PART 6: HOW AUTHENTICATION WORKS IN YESTATEHUB
+================================================================================
+
+Auth Flow:
+   1. User clicks Sign In (Email or Google)
+   2. Firebase Authentication verifies credentials
+   3. Firebase returns a User object with ID token
+   4. App syncs user profile to MongoDB via FastAPI backend (/api/auth/sync)
+   5. App checks email → if yestatehub@gmail.com → routes to Admin panel
+   6. Otherwise → routes to User or Service Provider home screen
+
+Key Files:
+   frontend/lib/services/auth_service.dart    → Firebase Auth logic
+   frontend/lib/services/api_service.dart      → HTTP client with auth headers
+   frontend/lib/screens/auth/login_screen.dart → Login UI
+   frontend/lib/screens/auth/signup_screen.dart → Sign Up UI
+   frontend/lib/app.dart                       → Routing (admin vs user vs SP)
+   frontend/web/index.html                     → Firebase SDK + OAuth Client ID
+   backend/app/firebase_auth.py                → Server-side JWT verification
+   backend/app/routes/auth.py                  → /api/auth/sync endpoint
+
+Admin Access:
+   Email: yestatehub@gmail.com
+   When this email logs in, the app detects it and routes to the admin panel.
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+Error: "ClientID not set"
+   → Add your OAuth Web Client ID to the <meta> tag in web/index.html
+
+Error: "Access blocked: Authorization Error" / "OAuth client was not found"
+   → The Client ID in index.html is wrong or placeholder. Get the correct one
+     from Google Cloud Console → Credentials → OAuth 2.0 Client IDs
+
+Error: "popup_closed"
+   → User closed the Google Sign-In popup. Not an error — just try again.
+
+Error: "origin_mismatch"
+   → Add your current localhost URL (check browser address bar for the port)
+     to Authorized JavaScript origins in Google Cloud Console
+
+Error: "invalid-email"
+   → Email format is wrong. Make sure it includes @ and a domain.
+
+Error: "Access blocked: This app's request is invalid" (redirect_uri_mismatch)
+   → Add http://localhost to Authorized redirect URIs in your OAuth client
+
+App still in "Testing" mode?
+   → Only test users can sign in. Either:
+     a) Add your email as a test user in OAuth consent screen
+     b) Publish the app (OAuth consent screen → PUBLISH APP)
+
+================================================================================
+                           Setup Complete!
+================================================================================

@@ -181,7 +181,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Property Analytics', style: AppTypography.headingSmall.copyWith(fontSize: 17)),
+                  Text('EstateIQ', style: AppTypography.headingSmall.copyWith(fontSize: 17)),
                   Text('AI-powered price prediction & market insights', style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiary, fontSize: 12)),
                 ],
               ),

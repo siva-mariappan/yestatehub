@@ -87,9 +87,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   return Center(
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 500),
-                    child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 32),
-                    child: Column(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         // Illustration circle

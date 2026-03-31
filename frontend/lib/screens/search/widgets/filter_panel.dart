@@ -49,6 +49,26 @@ class _FilterPanelState extends State<FilterPanel> {
   String _occupancy = '';
   bool _foodIncluded = false;
 
+  // ── Reset All Filters ───────────────────────────────────────
+  void _resetAllFilters() {
+    setState(() {
+      _selectedPropertyTypes.clear();
+      _priceRange = const RangeValues(0, 100000000);
+      _selectedBHK.clear();
+      _landExtent = null;
+      _buildupArea = null;
+      _furnishing = '';
+      _selectedParking.clear();
+      _selectedAmenitiesNearby.clear();
+      _selectedShowOnly.clear();
+      _facing = '';
+      _availability = '';
+      _preferredTenants = '';
+      _occupancy = '';
+      _foodIncluded = false;
+    });
+  }
+
   // ── Smart filter visibility rules ─────────────────────────────
   // IDs: 1=LandExtent, 2=BuildupArea, 3=BHK, 4=Price, 5=Furnishing,
   // 6=Parking, 7=Facing, 8=AmenitiesNearby, 9=ShowOnly,
@@ -213,10 +233,38 @@ class _FilterPanelState extends State<FilterPanel> {
 
         // ── Buy / Rent Toggle ─────────────────────────────────
         _buildBuyRentToggle(),
+        const SizedBox(height: 16),
+
+        // ── Reset All Button ────────────────────────────────
+        Align(
+          alignment: Alignment.centerRight,
+          child: GestureDetector(
+            onTap: _resetAllFilters,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.error.withOpacity(0.06),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.error.withOpacity(0.2)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.refresh_rounded, size: 16, color: AppColors.error),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Reset All',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.error),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
         const SizedBox(height: 20),
 
         // ── Property Type ─────────────────────────────────────
-        _buildSectionHeader('Property Type', onReset: () => setState(() => _selectedPropertyTypes.clear())),
+        _buildSectionHeader('Property Type'),
         const SizedBox(height: 10),
         ..._propertyTypeOptions.map((type) => _buildCheckboxTile(
               label: type,
@@ -233,7 +281,7 @@ class _FilterPanelState extends State<FilterPanel> {
 
         // ── Land Extent ───────────────────────────────────────
         if (visible.contains(1)) ...[
-          _buildSectionHeader('Land Extent', onReset: () => setState(() => _landExtent = null)),
+          _buildSectionHeader('Land Extent'),
           const SizedBox(height: 10),
           _buildRadioGroup(['Any', '400–800 sqft', '800–1600 sqft', '1600+ sqft'], _landExtent, (v) => setState(() => _landExtent = v)),
           const Divider(height: 32),
@@ -241,7 +289,7 @@ class _FilterPanelState extends State<FilterPanel> {
 
         // ── Buildup Area ──────────────────────────────────────
         if (visible.contains(2)) ...[
-          _buildSectionHeader('Buildup Area', onReset: () => setState(() => _buildupArea = null)),
+          _buildSectionHeader('Buildup Area'),
           const SizedBox(height: 10),
           _buildRadioGroup(['Any', '400–800 sqft', '800–1600 sqft', '1600+ sqft'], _buildupArea, (v) => setState(() => _buildupArea = v)),
           const Divider(height: 32),
@@ -249,7 +297,7 @@ class _FilterPanelState extends State<FilterPanel> {
 
         // ── BHK Type ──────────────────────────────────────────
         if (visible.contains(3)) ...[
-          _buildSectionHeader('BHK Type', onReset: () => setState(() => _selectedBHK.clear())),
+          _buildSectionHeader('BHK Type'),
           const SizedBox(height: 10),
           _buildMultiSelectWrap(['1 BHK', '2 BHK', '3 BHK', '4 BHK', '4+ BHK'], _selectedBHK),
           const Divider(height: 32),
@@ -257,7 +305,7 @@ class _FilterPanelState extends State<FilterPanel> {
 
         // ── Price Range ───────────────────────────────────────
         if (visible.contains(4)) ...[
-          _buildSectionHeader(_isBuyMode ? 'Price Range' : 'Rent Range', onReset: () => setState(() => _priceRange = RangeValues(0, _maxPrice))),
+          _buildSectionHeader(_isBuyMode ? 'Price Range' : 'Rent Range'),
           const SizedBox(height: 6),
           _buildPriceRangeSlider(),
           const Divider(height: 32),
@@ -265,7 +313,7 @@ class _FilterPanelState extends State<FilterPanel> {
 
         // ── Furnishing Status ─────────────────────────────────
         if (visible.contains(5)) ...[
-          _buildSectionHeader('Furnishing Status *', onReset: () => setState(() => _furnishing = '')),
+          _buildSectionHeader('Furnishing Status *'),
           const SizedBox(height: 10),
           _buildFurnishingToggle(),
           const Divider(height: 32),
@@ -273,7 +321,7 @@ class _FilterPanelState extends State<FilterPanel> {
 
         // ── Parking ───────────────────────────────────────────
         if (visible.contains(6)) ...[
-          _buildSectionHeader('Parking', onReset: () => setState(() => _selectedParking.clear())),
+          _buildSectionHeader('Parking'),
           const SizedBox(height: 10),
           _buildCheckboxTile(label: '2 Wheeler', value: _selectedParking.contains('2 Wheeler'), onChanged: (v) => setState(() => v! ? _selectedParking.add('2 Wheeler') : _selectedParking.remove('2 Wheeler'))),
           _buildCheckboxTile(label: '4 Wheeler', value: _selectedParking.contains('4 Wheeler'), onChanged: (v) => setState(() => v! ? _selectedParking.add('4 Wheeler') : _selectedParking.remove('4 Wheeler'))),
@@ -282,7 +330,7 @@ class _FilterPanelState extends State<FilterPanel> {
 
         // ── Property Facing ───────────────────────────────────
         if (visible.contains(7)) ...[
-          _buildSectionHeader('Property Facing', onReset: () => setState(() => _facing = '')),
+          _buildSectionHeader('Property Facing'),
           const SizedBox(height: 10),
           _buildMultiSelectWrap(['North', 'South', 'East', 'West', 'North-East', 'South-West'], {if (_facing.isNotEmpty) _facing}, singleSelect: true, onSingleChanged: (v) => setState(() => _facing = v)),
           const Divider(height: 32),
@@ -290,7 +338,7 @@ class _FilterPanelState extends State<FilterPanel> {
 
         // ── Amenities Nearby ──────────────────────────────────
         if (visible.contains(8)) ...[
-          _buildSectionHeader('Amenities Nearby', onReset: () => setState(() => _selectedAmenitiesNearby.clear())),
+          _buildSectionHeader('Amenities Nearby'),
           const SizedBox(height: 10),
           ...['School', 'Park', 'Gated Community', 'Street Solar Lights', '24x7 Surveillance', 'Theater', 'Hospital', 'Bus Stand'].map((a) => _buildCheckboxTile(
                 label: a,
@@ -302,7 +350,7 @@ class _FilterPanelState extends State<FilterPanel> {
 
         // ── Availability ──────────────────────────────────────
         if (visible.contains(10)) ...[
-          _buildSectionHeader('Availability', onReset: () => setState(() => _availability = '')),
+          _buildSectionHeader('Availability'),
           const SizedBox(height: 10),
           _buildMultiSelectWrap(['Immediate', 'Within 1 Month', 'Within 3 Months'], {if (_availability.isNotEmpty) _availability}, singleSelect: true, onSingleChanged: (v) => setState(() => _availability = v)),
           const Divider(height: 32),
@@ -310,7 +358,7 @@ class _FilterPanelState extends State<FilterPanel> {
 
         // ── Preferred Tenants ─────────────────────────────────
         if (visible.contains(11)) ...[
-          _buildSectionHeader('Preferred Tenants', onReset: () => setState(() => _preferredTenants = '')),
+          _buildSectionHeader('Preferred Tenants'),
           const SizedBox(height: 10),
           _buildMultiSelectWrap(['Any', 'Families', 'Bachelors'], {if (_preferredTenants.isNotEmpty) _preferredTenants}, singleSelect: true, onSingleChanged: (v) => setState(() => _preferredTenants = v)),
           const Divider(height: 32),
@@ -318,7 +366,7 @@ class _FilterPanelState extends State<FilterPanel> {
 
         // ── Occupancy ─────────────────────────────────────────
         if (visible.contains(12)) ...[
-          _buildSectionHeader('Occupancy', onReset: () => setState(() => _occupancy = '')),
+          _buildSectionHeader('Occupancy'),
           const SizedBox(height: 10),
           _buildMultiSelectWrap(['Single', 'Double', 'Triple', '4+'], {if (_occupancy.isNotEmpty) _occupancy}, singleSelect: true, onSingleChanged: (v) => setState(() => _occupancy = v)),
           const Divider(height: 32),
@@ -332,7 +380,7 @@ class _FilterPanelState extends State<FilterPanel> {
 
         // ── Show Only ─────────────────────────────────────────
         if (visible.contains(9)) ...[
-          _buildSectionHeader('Show Only', onReset: () => setState(() => _selectedShowOnly.clear())),
+          _buildSectionHeader('Show Only'),
           const SizedBox(height: 10),
           _buildCheckboxTile(label: 'With Photos', value: _selectedShowOnly.contains('With Photos'), onChanged: (v) => setState(() => v! ? _selectedShowOnly.add('With Photos') : _selectedShowOnly.remove('With Photos'))),
           _buildCheckboxTile(label: 'With Videos', value: _selectedShowOnly.contains('With Videos'), onChanged: (v) => setState(() => v! ? _selectedShowOnly.add('With Videos') : _selectedShowOnly.remove('With Videos'))),
@@ -525,19 +573,8 @@ class _FilterPanelState extends State<FilterPanel> {
   // ═══════════════════════════════════════════════════════════════
   // SECTION HEADER with optional Reset button
   // ═══════════════════════════════════════════════════════════════
-  Widget _buildSectionHeader(String title, {VoidCallback? onReset}) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-        ),
-        if (onReset != null)
-          GestureDetector(
-            onTap: onReset,
-            child: const Text('Reset', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primary)),
-          ),
-      ],
-    );
+  Widget _buildSectionHeader(String title) {
+    return Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary));
   }
 
   // ═══════════════════════════════════════════════════════════════

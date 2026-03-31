@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../config/colors.dart';
@@ -43,48 +44,72 @@ class _PropertyCardState extends State<PropertyCard> {
             boxShadow: _isHovered ? AppColors.cardHoverShadow : AppColors.cardShadow,
           ),
           clipBehavior: Clip.antiAlias,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── Image Section ──
-              _buildImageSection(),
-              // ── Badges Row (Verified | RERA | Zero Brokerage | ♥) ──
-              _buildBadgeRow(),
-              // ── Content Section ──
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Transaction type badge
-                      _buildTransactionBadge(),
-                      const SizedBox(height: 6),
-                      // Title
-                      Text(
-                        widget.property.title,
-                        style: AppTypography.headingSmall.copyWith(fontSize: 13, fontWeight: FontWeight.w700),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      // Location
-                      _buildLocationRow(),
-                      const SizedBox(height: 6),
-                      // Details: BHK | Bath | Sqft
-                      _buildDetailsRow(),
-                      const Spacer(),
-                      // Price + View Details
-                      _buildPriceRow(),
-                    ],
-                  ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final hasBoundedHeight = constraints.maxHeight.isFinite;
+              final contentSection = Padding(
+                padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: hasBoundedHeight ? MainAxisSize.max : MainAxisSize.min,
+                  children: [
+                    // Transaction type badge
+                    _buildTransactionBadge(),
+                    const SizedBox(height: 6),
+                    // Title
+                    Text(
+                      widget.property.title,
+                      style: AppTypography.headingSmall.copyWith(fontSize: 13, fontWeight: FontWeight.w700),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    // Location
+                    _buildLocationRow(),
+                    const SizedBox(height: 6),
+                    // Details: BHK | Bath | Sqft
+                    _buildDetailsRow(),
+                    if (hasBoundedHeight) const Spacer(),
+                    if (!hasBoundedHeight) const SizedBox(height: 8),
+                    // Price + View Details
+                    _buildPriceRow(),
+                  ],
                 ),
-              ),
-            ],
+              );
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: hasBoundedHeight ? MainAxisSize.max : MainAxisSize.min,
+                children: [
+                  // ── Image Section ──
+                  _buildImageSection(),
+                  // ── Badges Row (Verified | RERA | Zero Brokerage | ♥) ──
+                  _buildBadgeRow(),
+                  // ── Content Section ──
+                  if (hasBoundedHeight)
+                    Expanded(child: contentSection)
+                  else
+                    contentSection,
+                ],
+              );
+            },
           ),
         ),
       ),
     );
+  }
+
+  /// Resolves a base64 data URI or network URL to an ImageProvider
+  ImageProvider _resolveImage(String url) {
+    if (url.startsWith('data:image/')) {
+      try {
+        final b64 = url.split(',').last;
+        return MemoryImage(base64Decode(b64));
+      } catch (_) {
+        return const AssetImage('assets/images/placeholder.png');
+      }
+    }
+    return NetworkImage(url);
   }
 
   // ── Image ──────────────────────────────────────────────────────────────
@@ -99,7 +124,7 @@ class _PropertyCardState extends State<PropertyCard> {
               color: AppColors.divider,
               image: widget.property.images.isNotEmpty
                   ? DecorationImage(
-                      image: NetworkImage(widget.property.images.first),
+                      image: _resolveImage(widget.property.images.first),
                       fit: BoxFit.cover,
                     )
                   : null,

@@ -21,6 +21,16 @@ class _AddPropertyScreen1State extends State<AddPropertyScreen1> {
   late String _customNumBedsValue;
   late String _customPeoplePerRoomValue;
 
+  // Persistent controllers to avoid reversed text on rebuild
+  final Map<String, TextEditingController> _controllers = {};
+
+  TextEditingController _getController(String key, String initialValue) {
+    if (!_controllers.containsKey(key)) {
+      _controllers[key] = TextEditingController(text: initialValue);
+    }
+    return _controllers[key]!;
+  }
+
   final List<String> _sellPropertyTypes = [
     'Plot/Land',
     'Commercial Land',
@@ -123,6 +133,14 @@ class _AddPropertyScreen1State extends State<AddPropertyScreen1> {
     _customBathroomValue = '';
     _customNumBedsValue = '';
     _customPeoplePerRoomValue = '';
+  }
+
+  @override
+  void dispose() {
+    for (final c in _controllers.values) {
+      c.dispose();
+    }
+    super.dispose();
   }
 
   List<String> _getPopertyTypeOptions() {
@@ -669,9 +687,12 @@ class _AddPropertyScreen1State extends State<AddPropertyScreen1> {
     required String value,
     required ValueChanged<String> onChanged,
     required String hintText,
+    String? controllerKey,
   }) {
+    final key = controllerKey ?? hintText;
+    final controller = _getController(key, value);
     return TextField(
-      controller: TextEditingController(text: value),
+      controller: controller,
       onChanged: onChanged,
       decoration: InputDecoration(
         hintText: hintText,
@@ -698,9 +719,12 @@ class _AddPropertyScreen1State extends State<AddPropertyScreen1> {
     required String value,
     required ValueChanged<String> onChanged,
     required String hintText,
+    String? controllerKey,
   }) {
+    final key = controllerKey ?? 'num_$hintText';
+    final controller = _getController(key, value);
     return TextField(
-      controller: TextEditingController(text: value),
+      controller: controller,
       onChanged: onChanged,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       decoration: InputDecoration(
@@ -729,8 +753,9 @@ class _AddPropertyScreen1State extends State<AddPropertyScreen1> {
     required ValueChanged<String> onChanged,
     required int maxLength,
   }) {
+    final controller = _getController('description', value);
     return TextField(
-      controller: TextEditingController(text: value),
+      controller: controller,
       onChanged: onChanged,
       maxLines: 5,
       maxLength: maxLength,
@@ -789,7 +814,20 @@ class _AddPropertyScreen1State extends State<AddPropertyScreen1> {
   }
 
   Widget _buildNearbyAmenities() {
-    final selectedAmenities = Map<String, String>.from(_localData['nearbyAmenities'] ?? {});
+    // Data structure: { 'School': { 'name': 'DPS', 'distance': '0.5 km' }, ... }
+    final rawAmenities = _localData['nearbyAmenities'] ?? {};
+    final selectedAmenities = <String, Map<String, String>>{};
+    for (final entry in (rawAmenities as Map).entries) {
+      if (entry.value is Map) {
+        selectedAmenities[entry.key as String] = Map<String, String>.from(entry.value);
+      } else {
+        // Migrate old format (string distance) to new format
+        selectedAmenities[entry.key as String] = {
+          'name': '',
+          'distance': entry.value?.toString() ?? '',
+        };
+      }
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -798,9 +836,9 @@ class _AddPropertyScreen1State extends State<AddPropertyScreen1> {
           options: _nearbyAmenitiesOptions,
           selected: selectedAmenities.keys.toList(),
           onSelect: (selected) {
-            final newAmenities = <String, String>{};
+            final newAmenities = <String, Map<String, String>>{};
             for (final amenity in selected) {
-              newAmenities[amenity] = selectedAmenities[amenity] ?? '';
+              newAmenities[amenity] = selectedAmenities[amenity] ?? {'name': '', 'distance': ''};
             }
             _updateData({'nearbyAmenities': newAmenities});
           },
@@ -810,20 +848,82 @@ class _AddPropertyScreen1State extends State<AddPropertyScreen1> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: selectedAmenities.entries.map((entry) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
+              final amenityType = entry.key;
+              final amenityData = entry.value;
+              return Container(
+                margin: const EdgeInsets.only(bottom: 14),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.border),
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Amenity type header
+                    Row(
+                      children: [
+                        Icon(Icons.place_outlined, size: 16, color: AppColors.primary),
+                        const SizedBox(width: 6),
+                        Text(
+                          amenityType,
+                          style: AppTypography.labelMedium.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    // Name field
                     Text(
-                      '${entry.key} (Distance)',
-                      style: AppTypography.labelSmall,
+                      '$amenityType Name',
+                      style: AppTypography.labelSmall.copyWith(color: AppColors.textSecondary),
                     ),
                     const SizedBox(height: 6),
                     TextField(
-                      controller: TextEditingController(text: entry.value),
+                      controller: _getController('nearby_name_$amenityType', amenityData['name'] ?? ''),
                       onChanged: (value) {
-                        selectedAmenities[entry.key] = value;
+                        selectedAmenities[amenityType] = {
+                          'name': value,
+                          'distance': amenityData['distance'] ?? '',
+                        };
+                        _updateData({'nearbyAmenities': selectedAmenities});
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'e.g., ${_getNameHint(amenityType)}',
+                        filled: true,
+                        fillColor: AppColors.background,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: AppColors.border),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: AppColors.border),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    // Distance field
+                    Text(
+                      'Distance',
+                      style: AppTypography.labelSmall.copyWith(color: AppColors.textSecondary),
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: _getController('nearby_dist_$amenityType', amenityData['distance'] ?? ''),
+                      onChanged: (value) {
+                        selectedAmenities[amenityType] = {
+                          'name': amenityData['name'] ?? '',
+                          'distance': value,
+                        };
                         _updateData({'nearbyAmenities': selectedAmenities});
                       },
                       decoration: InputDecoration(
@@ -842,7 +942,7 @@ class _AddPropertyScreen1State extends State<AddPropertyScreen1> {
                           borderRadius: BorderRadius.circular(10),
                           borderSide: const BorderSide(color: AppColors.primary, width: 2),
                         ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       ),
                     ),
                   ],
@@ -853,6 +953,28 @@ class _AddPropertyScreen1State extends State<AddPropertyScreen1> {
         ],
       ],
     );
+  }
+
+  String _getNameHint(String amenityType) {
+    switch (amenityType) {
+      case 'School': return 'Delhi Public School';
+      case 'Hospital': return 'Apollo Hospital';
+      case 'Shopping Mall': return 'Phoenix Mall';
+      case 'Restaurant': return 'Taj Restaurant';
+      case 'Bus Stop': return 'Main Road Bus Stop';
+      case 'ATM': return 'SBI ATM';
+      case 'Pharmacy': return 'MedPlus Pharmacy';
+      case 'Gym': return 'Gold\'s Gym';
+      case 'Market': return 'Rythu Bazaar';
+      case 'Cinema Hall': return 'PVR Cinemas';
+      case 'Airport': return 'Rajiv Gandhi International';
+      case 'Railway Station': return 'Secunderabad Station';
+      case 'Police Station': return 'Madhapur Police Station';
+      case 'Bank': return 'SBI Branch';
+      case 'Library': return 'City Central Library';
+      case 'Beach': return 'RK Beach';
+      default: return 'Enter name';
+    }
   }
 
   Widget _buildBoundaryDetails() {
@@ -877,7 +999,7 @@ class _AddPropertyScreen1State extends State<AddPropertyScreen1> {
               ),
               const SizedBox(height: 6),
               TextField(
-                controller: TextEditingController(text: boundaries[direction] ?? ''),
+                controller: _getController('boundary_$direction', boundaries[direction] ?? ''),
                 onChanged: (value) {
                   boundaries[direction] = value;
                   _updateData({'boundaries': boundaries});

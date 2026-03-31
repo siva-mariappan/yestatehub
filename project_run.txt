@@ -1,0 +1,347 @@
+================================================================================
+   YESTATEHUB — PROJECT RUN GUIDE
+   Full-Stack: Flutter (Frontend) + FastAPI (Backend) + MongoDB Atlas + Firebase
+================================================================================
+
+
+================================================================================
+ PROJECT STRUCTURE
+================================================================================
+
+YestateHub/
+├── frontend/                  ← Flutter app (Web, Android, iOS)
+│   ├── lib/
+│   │   ├── main.dart          ← App entry point + Firebase init
+│   │   ├── app.dart           ← Navigation: Splash → Auth → Main/Admin/SP
+│   │   ├── config/            ← Colors, Typography, Responsive, Theme
+│   │   ├── models/            ← Property, Filter, etc.
+│   │   ├── screens/           ← All UI screens
+│   │   │   ├── auth/          ← Login, Signup (Firebase Google Auth)
+│   │   │   ├── home/          ← Home page with quick actions
+│   │   │   ├── search/        ← Property search & filters
+│   │   │   ├── admin/         ← Admin panel (yestatehub@gmail.com only)
+│   │   │   ├── chat/          ← Real-time messaging
+│   │   │   ├── add_property/  ← 6-step property wizard
+│   │   │   ├── dashboard/     ← User dashboard
+│   │   │   ├── analytics/     ← EstateIQ analytics
+│   │   │   ├── profile/       ← User profile
+│   │   │   └── ...
+│   │   ├── services/          ← API + Auth + Chat + Property + Ad services
+│   │   └── widgets/           ← Reusable components
+│   ├── web/index.html         ← Firebase JS SDK for web
+│   ├── pubspec.yaml           ← Flutter dependencies
+│   └── .env                   ← API_BASE_URL
+│
+├── backend/                   ← FastAPI + MongoDB Atlas
+│   ├── main.py                ← FastAPI entry point
+│   ├── init_db.py             ← Database seed script (run once)
+│   ├── requirements.txt       ← Python dependencies
+│   ├── .env                   ← MongoDB URI + config
+│   └── app/
+│       ├── config.py          ← Environment config
+│       ├── database.py        ← MongoDB connection (Motor async)
+│       ├── firebase_auth.py   ← JWT token verification (no firebase-admin needed)
+│       ├── models/            ← Pydantic schemas
+│       │   ├── property.py
+│       │   ├── chat.py
+│       │   └── advertisement.py
+│       └── routes/            ← API endpoints
+│           ├── auth.py        ← /api/auth/sync, /api/auth/me
+│           ├── property.py    ← /api/properties/ (CRUD)
+│           ├── chat.py        ← /api/chat/ (conversations, messages, websocket)
+│           └── advertisement.py ← /api/advertisements/ (admin CRUD + public)
+│
+├── firebase_setup.txt         ← Firebase configuration guide
+├── mongodb_setup.txt          ← MongoDB Atlas setup guide
+└── project_run.txt            ← THIS FILE
+
+
+================================================================================
+ PREREQUISITES
+================================================================================
+
+1. Flutter SDK          → https://docs.flutter.dev/get-started/install
+   - Minimum: Flutter 3.2+
+   - Run: flutter --version (to verify)
+
+2. Python 3.10 - 3.12   → https://www.python.org/downloads/
+   - Python 3.12 RECOMMENDED (3.14 has compatibility issues)
+   - If you have Python 3.14, create a venv with 3.12:
+     brew install python@3.12
+     python3.12 -m venv venv
+
+3. MongoDB Atlas Account → https://www.mongodb.com/cloud/atlas
+   - Free M0 cluster is sufficient for development
+   - Connection string already configured in backend/.env
+
+4. Firebase Project      → https://console.firebase.google.com
+   - Google Auth enabled
+   - Web app registered
+   - Credentials already configured in frontend code
+
+5. Chrome Browser        → For Flutter Web development
+
+
+================================================================================
+ STEP 1: BACKEND SETUP (FastAPI + MongoDB)
+================================================================================
+
+Open Terminal 1:
+
+  # Navigate to backend
+  cd YestateHub/backend
+
+  # Create virtual environment (use Python 3.12 if available)
+  python3 -m venv venv
+
+  # Activate virtual environment
+  source venv/bin/activate          # macOS / Linux
+  venv\Scripts\activate             # Windows
+
+  # Install dependencies
+  pip install -r requirements.txt
+
+  # Verify .env file exists with your MongoDB credentials
+  cat .env
+  # Should show:
+  # MONGODB_URI=mongodb+srv://yestatehub:yestatehub%402026@yestatehub.dpakhgc.mongodb.net/yestatehub?retryWrites=true&w=majority&appName=yestatehub
+  # MONGODB_DB_NAME=yestatehub
+
+  # Seed the database with sample data (run ONCE)
+  python init_db.py
+
+  # Expected output:
+  # Connected to database: yestatehub
+  # Creating 'users' collection...
+  #   Inserted 8 users (1 admin, 4 users, 3 service providers)
+  # Creating 'properties' collection...
+  #   Inserted 5 properties (buy, rent, pg, commercial)
+  # Creating 'conversations' collection...
+  #   Inserted 3 conversations
+  # Creating 'messages' collection...
+  #   Inserted 11 messages across 3 conversations
+  # Creating 'advertisements' collection...
+  #   Inserted 5 advertisements (3 active, 1 paused, 1 expired)
+  # DATABASE INITIALIZATION COMPLETE
+
+  # Start the backend server
+  uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+  # Expected output:
+  # Connected to MongoDB: yestatehub
+  # Uvicorn running on http://0.0.0.0:8000
+
+  # Verify: Open browser → http://localhost:8000
+  # Should return: {"app": "YEstateHub API", "version": "1.0.0", ...}
+
+  # API Docs: http://localhost:8000/docs (Swagger UI)
+
+
+================================================================================
+ STEP 2: FRONTEND SETUP (Flutter)
+================================================================================
+
+Open Terminal 2:
+
+  # Navigate to frontend
+  cd YestateHub/frontend
+
+  # Get Flutter packages
+  flutter pub get
+
+  # Verify .env file
+  cat .env
+  # Should show: API_BASE_URL=http://localhost:8000
+
+  # Run on Chrome (Web)
+  flutter run -d chrome
+
+  # OR run on specific port
+  flutter run -d chrome --web-port=3000
+
+  # OR build for web
+  flutter build web --release
+
+  # For Android emulator
+  flutter run -d emulator-5554
+
+  # For iOS simulator
+  flutter run -d iPhone
+
+
+================================================================================
+ STEP 3: VERIFY EVERYTHING WORKS
+================================================================================
+
+1. BACKEND CHECK:
+   - Open: http://localhost:8000          → Should show API info
+   - Open: http://localhost:8000/health   → Should show {"status": "ok"}
+   - Open: http://localhost:8000/docs     → Swagger UI with all endpoints
+
+2. FRONTEND CHECK:
+   - Flutter Web opens in Chrome
+   - Splash screen → Onboarding → Login screen appears
+
+3. USER LOGIN:
+   - Click "Google" button → Google OAuth popup → Sign in
+   - OR use Email/Password → Enter credentials → Sign In
+   - Redirects to Home page with properties, search, quick actions
+
+4. ADMIN LOGIN:
+   - Login with: yestatehub@gmail.com
+   - Automatically redirects to Admin Panel
+   - Shows: Stats, Properties, Users, Search tabs
+   - Has "View as User" and "Logout" in top-right menu
+
+5. CHAT:
+   - Navigate to Messages from home quick actions
+   - View conversations, send messages
+   - Real-time via WebSocket when backend is running
+
+
+================================================================================
+ API ENDPOINTS REFERENCE
+================================================================================
+
+BASE URL: http://localhost:8000
+
+AUTH:
+  POST   /api/auth/sync                          → Sync Firebase user to MongoDB
+  GET    /api/auth/me                             → Get current user profile
+
+PROPERTIES:
+  POST   /api/properties/                         → Create property (auth)
+  GET    /api/properties/                         → List with filters (public)
+  GET    /api/properties/my                       → My properties (auth)
+  GET    /api/properties/{id}                     → Property detail (public)
+  PUT    /api/properties/{id}                     → Update (owner only)
+  DELETE /api/properties/{id}                     → Delete (owner only)
+
+CHAT:
+  POST   /api/chat/conversations                  → Create conversation (auth)
+  GET    /api/chat/conversations                  → List conversations (auth)
+  GET    /api/chat/conversations/{id}/messages     → Get messages (auth)
+  POST   /api/chat/messages                       → Send message (auth)
+  WS     /api/chat/ws/{user_uid}                  → WebSocket real-time
+
+ADVERTISEMENTS:
+  GET    /api/advertisements/active               → Active ads (public)
+  POST   /api/advertisements/{id}/click           → Track click (public)
+  GET    /api/advertisements/                     → All ads (admin only)
+  POST   /api/advertisements/                     → Create ad (admin only)
+  PUT    /api/advertisements/{id}                 → Update ad (admin only)
+  DELETE /api/advertisements/{id}                 → Delete ad (admin only)
+
+UTILITY:
+  GET    /                                        → API info
+  GET    /health                                  → Health check
+  GET    /docs                                    → Swagger interactive docs
+
+
+================================================================================
+ MONGODB COLLECTIONS
+================================================================================
+
+Database: yestatehub
+
+  users (8 docs)           → uid, email, name, role, phone, is_active
+  properties (5 docs)      → title, price, city, type, images, owner_uid
+  conversations (3 docs)   → participants, property_id, last_message
+  messages (11 docs)       → conversation_id, sender_uid, text, is_read
+  advertisements (5 docs)  → title, subtitle, placement, status, budget
+
+
+================================================================================
+ USER ROLES & LOGIN ROUTING
+================================================================================
+
+  Email                     Role              Redirects To
+  ─────────────────────     ────────────      ─────────────────
+  yestatehub@gmail.com      Admin             Admin Panel
+  (any email, SP toggle)    Service Provider  SP Dashboard
+  (any other email)         Regular User      Home Page
+
+
+================================================================================
+ COMMON COMMANDS
+================================================================================
+
+  # Backend
+  cd backend && source venv/bin/activate && uvicorn main:app --reload
+  python init_db.py                            # Seed/reset database
+
+  # Frontend
+  cd frontend && flutter run -d chrome         # Run on web
+  flutter pub get                              # Install packages
+  flutter build web --release                  # Production build
+  flutter clean && flutter pub get             # Fix build issues
+
+  # Check backend logs
+  curl http://localhost:8000/health
+
+  # Test API (no auth, dev mode)
+  curl http://localhost:8000/api/properties/
+  curl http://localhost:8000/api/advertisements/active
+
+
+================================================================================
+ TROUBLESHOOTING
+================================================================================
+
+PROBLEM: "ModuleNotFoundError: No module named 'xxx'"
+  → Make sure venv is activated: source venv/bin/activate
+  → Reinstall: pip install -r requirements.txt
+
+PROBLEM: "pydantic-core build failed" on Python 3.14
+  → Use Python 3.12 instead:
+    brew install python@3.12
+    python3.12 -m venv venv
+    source venv/bin/activate
+    pip install -r requirements.txt
+
+PROBLEM: Backend can't connect to MongoDB
+  → Check .env file has correct MONGODB_URI
+  → Check MongoDB Atlas Network Access allows your IP (0.0.0.0/0 for dev)
+  → Check username/password in URI (@ in password = %40)
+
+PROBLEM: Flutter "Firebase App not initialized"
+  → Check main.dart has correct FirebaseOptions
+  → Check web/index.html has Firebase JS scripts
+  → Run: flutter clean && flutter pub get
+
+PROBLEM: Google Sign-In popup doesn't appear
+  → Add localhost to Firebase Console → Auth → Settings → Authorized domains
+  → For Android: add SHA-1 in Firebase Console
+  → For iOS: add REVERSED_CLIENT_ID in Info.plist
+
+PROBLEM: CORS error in browser console
+  → Backend CORS allows all origins in dev mode (already configured)
+  → Restart backend after changing .env
+
+PROBLEM: "Connection refused" from Flutter to backend
+  → Verify backend is running: curl http://localhost:8000/health
+  → Check frontend/.env has correct API_BASE_URL
+  → Android emulator: use http://10.0.2.2:8000 instead of localhost
+
+PROBLEM: flutter run shows dependency errors
+  → flutter clean
+  → flutter pub get
+  → flutter run -d chrome
+
+
+================================================================================
+ TECH STACK SUMMARY
+================================================================================
+
+  Frontend:     Flutter 3.2+ (Dart)
+  Backend:      FastAPI (Python)
+  Database:     MongoDB Atlas (cloud NoSQL)
+  Auth:         Firebase Authentication (Google + Email/Password)
+  Token:        PyJWT (server-side JWT verification)
+  Real-time:    WebSocket (chat)
+  HTTP Client:  http (Flutter) / httpx (Python)
+  ORM:          Motor (async MongoDB driver)
+  Validation:   Pydantic (Python models)
+  API Docs:     Swagger UI (auto-generated at /docs)
+
+================================================================================

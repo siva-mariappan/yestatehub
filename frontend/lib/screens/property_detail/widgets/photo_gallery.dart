@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../../config/colors.dart';
 import '../../../config/typography.dart';
@@ -50,11 +51,23 @@ class _PhotoGalleryState extends State<PhotoGallery> {
             itemCount: widget.images.length,
             onPageChanged: (i) => setState(() => _current = i),
             itemBuilder: (context, index) {
+              final imgUrl = widget.images[index];
+              ImageProvider imgProvider;
+              if (imgUrl.startsWith('data:image/')) {
+                try {
+                  final b64 = imgUrl.split(',').last;
+                  imgProvider = MemoryImage(base64Decode(b64));
+                } catch (_) {
+                  imgProvider = const AssetImage('assets/images/placeholder.png');
+                }
+              } else {
+                imgProvider = NetworkImage(imgUrl);
+              }
               return Container(
                 decoration: BoxDecoration(
                   color: AppColors.divider,
                   image: DecorationImage(
-                    image: NetworkImage(widget.images[index]),
+                    image: imgProvider,
                     fit: BoxFit.cover,
                   ),
                 ),

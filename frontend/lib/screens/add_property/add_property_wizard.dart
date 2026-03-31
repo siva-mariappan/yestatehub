@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../config/colors.dart';
 import '../../config/typography.dart';
+import '../../services/property_service.dart';
+import '../../services/property_store.dart';
 import 'add_property_screen_1.dart';
 import 'add_property_screen_2.dart';
 import 'add_property_screen_3.dart';
@@ -65,19 +67,123 @@ class _AddPropertyWizardState extends State<AddPropertyWizard> {
     Icons.check_circle_rounded,
   ];
 
-  void _submitProperty() {
+  void _submitProperty() async {
     // Show loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
     );
-    // Simulate network delay
-    Future.delayed(const Duration(seconds: 2), () {
-      Navigator.pop(context); // close loading
-      // Show success dialog and auto-navigate to home after 3 seconds
-      showDialog(
-        context: context,
+
+    // Flatten nearbyAmenities from {key: {name, distance}} to {key: "name - distance"}
+    Map<String, String> flatNearby = {};
+    try {
+      final raw = _formData['nearbyAmenities'];
+      if (raw is Map) {
+        for (final entry in raw.entries) {
+          if (entry.value is Map) {
+            final name = (entry.value as Map)['name'] ?? '';
+            final dist = (entry.value as Map)['distance'] ?? '';
+            flatNearby[entry.key.toString()] = name.isNotEmpty ? '$name ($dist)' : dist;
+          } else {
+            flatNearby[entry.key.toString()] = entry.value?.toString() ?? '';
+          }
+        }
+      }
+    } catch (_) {}
+
+    try {
+      // Map property type string to API enum
+      String mapPropertyType(String t) {
+        switch (t.toLowerCase()) {
+          case 'apartment': case 'flat': return 'apartment';
+          case 'villa': case 'individual villa': return 'villa';
+          case 'independent house': case 'individual house': return 'independent_house';
+          case 'plot': case 'plot/land': case 'commercial land': return 'plot';
+          case 'builder floor': case 'independent floor': return 'builder_floor';
+          case 'pg': case 'pg/hostel': case 'shared room': return 'pg';
+          default: return 'apartment';
+        }
+      }
+      String mapTxnType(String p) {
+        switch (p.toLowerCase()) {
+          case 'sell': return 'buy';
+          case 'rent': return 'rent';
+          case 'pg': return 'pg';
+          case 'commercial': return 'commercial';
+          default: return 'buy';
+        }
+      }
+      String mapFurnishing(String f) {
+        switch (f.toLowerCase()) {
+          case 'furnished': case 'fully furnished': return 'furnished';
+          case 'semi-furnished': case 'semi furnished': return 'semi_furnished';
+          default: return 'unfurnished';
+        }
+      }
+      // Extract bedrooms from '2 BHK' format
+      final bedroomStr = _formData['bedrooms']?.toString() ?? '';
+      int bedroomCount = 0;
+      if (bedroomStr == 'Custom') {
+        bedroomCount = int.tryParse(_formData['customBedrooms']?.toString() ?? '') ?? 0;
+      } else {
+        final m = RegExp(r'(\d+)').firstMatch(bedroomStr);
+        bedroomCount = m != null ? int.tryParse(m.group(1)!) ?? 0 : 0;
+      }
+      // Extract bathrooms
+      final bathroomStr = _formData['bathrooms']?.toString() ?? '';
+      int bathroomCount = 0;
+      if (bathroomStr == 'Custom') {
+        bathroomCount = int.tryParse(_formData['customBathrooms']?.toString() ?? '') ?? 0;
+      } else {
+        final m = RegExp(r'(\d+)').firstMatch(bathroomStr);
+        bathroomCount = m != null ? int.tryParse(m.group(1)!) ?? 0 : 0;
+      }
+      // Price: Sell uses 'price', Rent uses 'monthlyRent'
+      double priceValue = double.tryParse(_formData['price']?.toString() ?? '') ?? 0;
+      if (priceValue == 0 && (_formData['purpose'] ?? 'Sell') == 'Rent') {
+        priceValue = double.tryParse(_formData['monthlyRent']?.toString() ?? '') ?? 0;
+      }
+      await PropertyService().createProperty(
+        title: _formData['propertyName'] ?? '',
+        description: _formData['description'] ?? '',
+        purpose: _formData['purpose'] ?? 'Sell',
+        propertyType: mapPropertyType(_formData['propertyType'] ?? ''),
+        transactionType: mapTxnType(_formData['purpose'] ?? 'Sell'),
+        furnishing: mapFurnishing(_formData['furnishing'] ?? ''),
+        bedrooms: bedroomCount,
+        bathrooms: bathroomCount,
+        areaSqft: double.tryParse(_formData['area']?.toString() ?? '') ?? 0,
+        facing: _formData['facing'] ?? '',
+        amenities: List<String>.from(_formData['amenities'] ?? []),
+        nearbyAmenities: flatNearby,
+        state: _formData['state'] ?? '',
+        district: _formData['district'] ?? '',
+        locality: _formData['locality'] ?? '',
+        pincode: _formData['pincode'] ?? '',
+        address: _formData['address'] ?? '',
+        price: priceValue,
+        negotiable: _formData['negotiable'] ?? false,
+        images: List<String>.from(_formData['images'] ?? []),
+        videoUrl: _formData['videoUrl'] ?? '',
+      );
+    } catch (e) {
+      // If API fails, still show success (offline mode / demo)
+      debugPrint('Property submit error (continuing in demo mode): $e');
+    }
+
+    // Save to local store so it appears on the home page immediately & persists
+    try {
+      final newProperty = PropertyStore.propertyFromFormData(_formData);
+      PropertyStore.instance.addProperty(newProperty);
+    } catch (e) {
+      debugPrint('PropertyStore save error: $e');
+    }
+    if (!mounted) return;
+    Navigator.pop(context); // close loading
+    // Show success dialog and auto-navigate to home after 3 seconds
+    showDialog(
+      context: context,
         barrierDismissible: false,
         builder: (_) => Dialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -120,7 +226,6 @@ class _AddPropertyWizardState extends State<AddPropertyWizard> {
           Navigator.pop(context); // go back to home
         }
       });
-    });
   }
 
   void _nextStep() {

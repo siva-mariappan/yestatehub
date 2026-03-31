@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../config/colors.dart';
 import '../../config/typography.dart';
 
@@ -28,19 +29,21 @@ class _AddPropertyScreen5State extends State<AddPropertyScreen5> {
   late TextEditingController companyNameController;
   late TextEditingController companyAddressController;
 
+  // OTP controllers
+  late List<TextEditingController> otpControllers;
+  late List<FocusNode> otpFocusNodes;
+
   bool whatsappSameAsMobile = true;
   String selectedExperience = '1–3 years';
   String selectedProjectsCompleted = '1–5';
 
-  // OTP Verification
-  List<String> otpDigits = ['', '', '', ''];
+  // OTP Verification (inline)
   bool isOtpVerified = false;
   int otpTimer = 60;
   bool isOtpSent = false;
 
   // Subscription Plan
   String selectedPlan = 'free';
-
 
   @override
   void initState() {
@@ -54,6 +57,22 @@ class _AddPropertyScreen5State extends State<AddPropertyScreen5> {
     officeAddressController = TextEditingController();
     companyNameController = TextEditingController();
     companyAddressController = TextEditingController();
+
+    otpControllers = List.generate(4, (_) => TextEditingController());
+    otpFocusNodes = List.generate(4, (_) => FocusNode());
+
+    // Push contact data back to wizard whenever fields change
+    contactNameController.addListener(_syncContactData);
+    mobileNumberController.addListener(_syncContactData);
+    emailController.addListener(_syncContactData);
+  }
+
+  void _syncContactData() {
+    widget.onUpdate?.call({
+      'contactName': contactNameController.text,
+      'contactPhone': mobileNumberController.text,
+      'contactEmail': emailController.text,
+    });
   }
 
   @override
@@ -67,17 +86,30 @@ class _AddPropertyScreen5State extends State<AddPropertyScreen5> {
     officeAddressController.dispose();
     companyNameController.dispose();
     companyAddressController.dispose();
+    for (final c in otpControllers) {
+      c.dispose();
+    }
+    for (final f in otpFocusNodes) {
+      f.dispose();
+    }
     super.dispose();
   }
 
   void _sendOtp() {
+    if (mobileNumberController.text.length < 10) return;
     setState(() {
       isOtpSent = true;
       otpTimer = 60;
-      // Mock: auto-fill OTP
-      otpDigits = ['1', '2', '3', '4'];
+      // Clear OTP fields
+      for (final c in otpControllers) {
+        c.clear();
+      }
     });
     _startOtpTimer();
+    // Focus the first OTP box
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (mounted) otpFocusNodes[0].requestFocus();
+    });
   }
 
   void _startOtpTimer() {
@@ -90,7 +122,9 @@ class _AddPropertyScreen5State extends State<AddPropertyScreen5> {
   }
 
   void _verifyOtp() {
-    // Mock verification
+    final otp = otpControllers.map((c) => c.text).join();
+    if (otp.length < 4) return;
+    // Mock verification — always succeeds
     setState(() {
       isOtpVerified = true;
     });
@@ -115,12 +149,8 @@ class _AddPropertyScreen5State extends State<AddPropertyScreen5> {
           _buildListedBySection(),
           const SizedBox(height: 24),
 
-          // Contact Details Section
+          // Contact Details Section (with inline OTP)
           _buildContactDetailsSection(),
-          const SizedBox(height: 24),
-
-          // OTP Verification Section
-          _buildOtpVerificationSection(),
           const SizedBox(height: 24),
 
           // Subscription Plan Section
@@ -131,6 +161,7 @@ class _AddPropertyScreen5State extends State<AddPropertyScreen5> {
     );
   }
 
+  // ─── Listed By ──────────────────────────────────────────────
   Widget _buildListedBySection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -188,6 +219,7 @@ class _AddPropertyScreen5State extends State<AddPropertyScreen5> {
     );
   }
 
+  // ─── Contact Details (with inline mobile verification) ──────
   Widget _buildContactDetailsSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -196,12 +228,17 @@ class _AddPropertyScreen5State extends State<AddPropertyScreen5> {
         const SizedBox(height: 12),
         _buildTextField('Contact Name *', contactNameController, 'Enter your name'),
         const SizedBox(height: 12),
-        _buildPhoneField(),
+
+        // ── Mobile Number with inline verification ──
+        _buildMobileWithVerification(),
         const SizedBox(height: 12),
+
         _buildTextField('Email', emailController, 'your.email@example.com'),
         const SizedBox(height: 12),
         _buildWhatsappSection(),
         const SizedBox(height: 12),
+
+        // Agent-specific fields
         if (selectedListedBy == 'agent') ...[
           _buildTextField('Agency Name *', agencyNameController, 'Enter agency name'),
           const SizedBox(height: 12),
@@ -227,6 +264,304 @@ class _AddPropertyScreen5State extends State<AddPropertyScreen5> {
     );
   }
 
+  // ─── Single Mobile Field + Inline OTP ───────────────────────
+  Widget _buildMobileWithVerification() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Mobile Number *',
+          style: AppTypography.bodySmall.copyWith(fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 6),
+
+        // Phone input row with Send OTP / Verified badge
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Phone field
+            Expanded(
+              child: TextField(
+                controller: mobileNumberController,
+                keyboardType: TextInputType.number,
+                style: AppTypography.bodyMedium,
+                maxLength: 10,
+                enabled: !isOtpVerified,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  hintText: '9876543210',
+                  prefixIcon: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    alignment: Alignment.center,
+                    width: 64,
+                    child: Text(
+                      '+91',
+                      style: AppTypography.bodyMedium.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                  hintStyle: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(
+                      color: isOtpVerified ? Colors.green.shade400 : AppColors.border,
+                      width: isOtpVerified ? 1.5 : 1,
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: AppColors.primary, width: 2),
+                  ),
+                  disabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.green.shade400, width: 1.5),
+                  ),
+                  filled: isOtpVerified,
+                  fillColor: isOtpVerified ? Colors.green.shade50 : null,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                  counterText: '',
+                  suffixIcon: isOtpVerified
+                      ? Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: Icon(Icons.check_circle_rounded, color: Colors.green.shade600, size: 22),
+                        )
+                      : null,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+
+            // Send OTP / Verified button
+            if (isOtpVerified)
+              Container(
+                margin: const EdgeInsets.only(top: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.green.shade300),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.verified_rounded, color: Colors.green.shade700, size: 16),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Verified',
+                      style: AppTypography.labelSmall.copyWith(
+                        color: Colors.green.shade700,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              SizedBox(
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: mobileNumberController.text.length == 10 && !isOtpSent
+                      ? _sendOtp
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    disabledBackgroundColor: AppColors.primary.withOpacity(0.4),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                  ),
+                  child: Text(
+                    isOtpSent ? 'OTP Sent' : 'Send OTP',
+                    style: AppTypography.labelSmall.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+
+        // ── Inline OTP section (appears after Send OTP) ──
+        if (isOtpSent && !isOtpVerified) ...[
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border.withOpacity(0.6)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Info banner
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF7ED),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFFED7AA)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.sms_outlined, color: Color(0xFFF97316), size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'OTP sent to +91 ${mobileNumberController.text}',
+                          style: AppTypography.bodySmall.copyWith(
+                            color: const Color(0xFF9A3412),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // OTP label
+                Text(
+                  'Enter 4-digit verification code',
+                  style: AppTypography.bodySmall.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 10),
+
+                // OTP input boxes
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: List.generate(4, (index) {
+                    return Container(
+                      margin: EdgeInsets.only(right: index < 3 ? 12 : 0),
+                      width: 52,
+                      height: 52,
+                      child: TextField(
+                        controller: otpControllers[index],
+                        focusNode: otpFocusNodes[index],
+                        keyboardType: TextInputType.number,
+                        textAlign: TextAlign.center,
+                        maxLength: 1,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF1E293B),
+                        ),
+                        decoration: InputDecoration(
+                          counterText: '',
+                          contentPadding: EdgeInsets.zero,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: AppColors.border),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: AppColors.primary, width: 2),
+                          ),
+                          filled: otpControllers[index].text.isNotEmpty,
+                          fillColor: AppColors.primary.withOpacity(0.05),
+                        ),
+                        onChanged: (value) {
+                          if (value.isNotEmpty && index < 3) {
+                            otpFocusNodes[index + 1].requestFocus();
+                          }
+                          if (value.isEmpty && index > 0) {
+                            otpFocusNodes[index - 1].requestFocus();
+                          }
+                          setState(() {});
+                        },
+                      ),
+                    );
+                  }),
+                ),
+                const SizedBox(height: 14),
+
+                // Timer / Resend + Verify button row
+                Row(
+                  children: [
+                    // Timer or resend
+                    if (otpTimer > 0) ...[
+                      Icon(Icons.timer_outlined, size: 14, color: AppColors.textTertiary),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Resend in ',
+                        style: AppTypography.bodySmall.copyWith(
+                          color: AppColors.textTertiary,
+                          fontSize: 12,
+                        ),
+                      ),
+                      Text(
+                        '00:${otpTimer.toString().padLeft(2, '0')}',
+                        style: AppTypography.labelSmall.copyWith(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ] else
+                      GestureDetector(
+                        onTap: _sendOtp,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.refresh_rounded, size: 14, color: AppColors.primary),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Resend OTP',
+                              style: AppTypography.labelSmall.copyWith(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    const Spacer(),
+
+                    // Verify button
+                    SizedBox(
+                      height: 38,
+                      child: ElevatedButton.icon(
+                        onPressed: otpControllers.every((c) => c.text.isNotEmpty)
+                            ? _verifyOtp
+                            : null,
+                        icon: const Icon(Icons.verified_user_outlined, size: 16, color: Colors.white),
+                        label: Text(
+                          'Verify',
+                          style: AppTypography.labelSmall.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          disabledBackgroundColor: AppColors.primary.withOpacity(0.4),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
   Widget _buildTextField(String label, TextEditingController controller, String hint) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -241,30 +576,6 @@ class _AddPropertyScreen5State extends State<AddPropertyScreen5> {
             hintStyle: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPhoneField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Mobile Number *', style: AppTypography.bodySmall.copyWith(fontWeight: FontWeight.w600)),
-        const SizedBox(height: 6),
-        TextField(
-          controller: mobileNumberController,
-          keyboardType: TextInputType.number,
-          style: AppTypography.bodyMedium,
-          maxLength: 10,
-          decoration: InputDecoration(
-            hintText: '9876543210',
-            prefixText: '+91 ',
-            hintStyle: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiary),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            counterText: '',
           ),
         ),
       ],
@@ -315,431 +626,7 @@ class _AddPropertyScreen5State extends State<AddPropertyScreen5> {
     );
   }
 
-  Widget _buildOtpVerificationSection() {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: isOtpVerified
-            ? LinearGradient(
-                colors: [Colors.green.shade50, Colors.green.shade50.withOpacity(0.3)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              )
-            : const LinearGradient(
-                colors: [Color(0xFFF0FDF4), Color(0xFFF7FEF9)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isOtpVerified ? Colors.green.shade300 : AppColors.primary.withOpacity(0.3),
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: (isOtpVerified ? Colors.green : AppColors.primary).withOpacity(0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: isOtpVerified
-                  ? Colors.green.shade50
-                  : AppColors.primary.withOpacity(0.05),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(15),
-                topRight: Radius.circular(15),
-              ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: isOtpVerified
-                        ? Colors.green.withOpacity(0.15)
-                        : AppColors.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    isOtpVerified ? Icons.verified_rounded : Icons.phone_android_rounded,
-                    color: isOtpVerified ? Colors.green : AppColors.primary,
-                    size: 22,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Mobile Verification',
-                        style: AppTypography.labelLarge.copyWith(fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        isOtpVerified
-                            ? 'Your number has been verified'
-                            : 'Verify your number to publish listing',
-                        style: AppTypography.bodySmall.copyWith(
-                          color: AppColors.textSecondary,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (isOtpVerified)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.green,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.check_circle_rounded, color: Colors.white, size: 14),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Verified',
-                          style: AppTypography.labelSmall.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          ),
-
-          // Body
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Step indicator
-                if (!isOtpVerified) ...[
-                  Row(
-                    children: [
-                      _buildStepDot(1, 'Enter Number', true),
-                      Expanded(child: Container(height: 2, color: isOtpSent ? AppColors.primary : AppColors.border)),
-                      _buildStepDot(2, 'Enter OTP', isOtpSent),
-                      Expanded(child: Container(height: 2, color: isOtpVerified ? Colors.green : AppColors.border)),
-                      _buildStepDot(3, 'Verified', isOtpVerified),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                ],
-
-                // Phone number display
-                if (!isOtpSent) ...[
-                  Text(
-                    'We\'ll send a 4-digit code to your mobile number',
-                    style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
-                  ),
-                  const SizedBox(height: 14),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF1F5F9),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            children: [
-                              Text('🇮🇳', style: const TextStyle(fontSize: 16)),
-                              const SizedBox(width: 4),
-                              Text('+91', style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600)),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            mobileNumberController.text.isNotEmpty
-                                ? mobileNumberController.text
-                                : 'Enter mobile number above',
-                            style: AppTypography.bodyMedium.copyWith(
-                              color: mobileNumberController.text.isNotEmpty
-                                  ? AppColors.textPrimary
-                                  : AppColors.textTertiary,
-                              letterSpacing: 1.2,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton.icon(
-                      onPressed: _sendOtp,
-                      icon: const Icon(Icons.sms_outlined, size: 18, color: Colors.white),
-                      label: Text(
-                        'Send OTP',
-                        style: AppTypography.labelMedium.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                  ),
-                ] else if (!isOtpVerified) ...[
-                  // OTP sent state
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFF7ED),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFFED7AA)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.info_outline_rounded, color: Color(0xFFF97316), size: 18),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'OTP sent to +91 ${mobileNumberController.text.isNotEmpty ? mobileNumberController.text : '••••••••••'}',
-                            style: AppTypography.bodySmall.copyWith(
-                              color: const Color(0xFF9A3412),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // OTP Input Boxes
-                  Text(
-                    'Enter verification code',
-                    style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(4, (index) {
-                      final hasValue = otpDigits[index].isNotEmpty;
-                      return Container(
-                        margin: EdgeInsets.only(right: index < 3 ? 16 : 0),
-                        width: 56,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          color: hasValue ? AppColors.primary.withOpacity(0.05) : Colors.white,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: hasValue ? AppColors.primary : AppColors.border,
-                            width: hasValue ? 2 : 1.5,
-                          ),
-                          boxShadow: hasValue
-                              ? [
-                                  BoxShadow(
-                                    color: AppColors.primary.withOpacity(0.1),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ]
-                              : [],
-                        ),
-                        child: Center(
-                          child: Text(
-                            otpDigits[index],
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
-                              letterSpacing: 0,
-                            ),
-                          ),
-                        ),
-                      );
-                    }),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Timer & Resend
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (otpTimer > 0) ...[
-                        Icon(Icons.timer_outlined, size: 16, color: AppColors.textTertiary),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Resend in ',
-                          style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiary),
-                        ),
-                        Text(
-                          '00:${otpTimer.toString().padLeft(2, '0')}',
-                          style: AppTypography.labelSmall.copyWith(
-                            color: AppColors.textPrimary,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ] else
-                        GestureDetector(
-                          onTap: _sendOtp,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.refresh_rounded, size: 16, color: AppColors.primary),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'Resend OTP',
-                                  style: AppTypography.labelSmall.copyWith(
-                                    color: AppColors.primary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Verify Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton.icon(
-                      onPressed: _verifyOtp,
-                      icon: const Icon(Icons.verified_user_outlined, size: 18, color: Colors.white),
-                      label: Text(
-                        'Verify & Continue',
-                        style: AppTypography.labelMedium.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                  ),
-                ] else ...[
-                  // Verified state
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: Colors.green.shade200),
-                    ),
-                    child: Column(
-                      children: [
-                        Container(
-                          width: 56,
-                          height: 56,
-                          decoration: BoxDecoration(
-                            color: Colors.green.shade50,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(Icons.check_rounded, color: Colors.green.shade600, size: 32),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Phone Number Verified!',
-                          style: AppTypography.labelLarge.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: Colors.green.shade700,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '+91 ${mobileNumberController.text.isNotEmpty ? mobileNumberController.text : '••••••••••'}',
-                          style: AppTypography.bodyMedium.copyWith(
-                            color: AppColors.textSecondary,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStepDot(int step, String label, bool isActive) {
-    return Column(
-      children: [
-        Container(
-          width: 28,
-          height: 28,
-          decoration: BoxDecoration(
-            color: isActive ? AppColors.primary : Colors.white,
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: isActive ? AppColors.primary : AppColors.border,
-              width: 2,
-            ),
-          ),
-          child: Center(
-            child: isActive
-                ? Icon(Icons.check_rounded, size: 14, color: Colors.white)
-                : Text(
-                    '$step',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textTertiary,
-                    ),
-                  ),
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 9,
-            fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-            color: isActive ? AppColors.primary : AppColors.textTertiary,
-          ),
-        ),
-      ],
-    );
-  }
-
+  // ─── Subscription Plans ─────────────────────────────────────
   Widget _buildSubscriptionPlansSection() {
     final plans = [
       {

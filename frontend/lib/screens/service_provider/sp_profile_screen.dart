@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../config/colors.dart';
 import '../../config/typography.dart';
 import '../../config/responsive.dart';
@@ -26,8 +27,12 @@ class SpProfileScreen extends StatelessWidget {
               const SizedBox(height: 20),
               _buildStatsBar(),
               const SizedBox(height: 20),
+              _buildAccountLevelCard(),
+              const SizedBox(height: 20),
               _buildCompletionCard(),
               const SizedBox(height: 24),
+              _buildQuickLinks(),
+              const SizedBox(height: 28),
               _buildMenuSection('Account Settings', [
                 _menuItem(Icons.person_outline_rounded, 'Edit Profile', 'Name, photo, bio', AppColors.primary),
                 _menuItem(Icons.location_on_outlined, 'Service Areas', 'Hyderabad, Secunderabad +3', AppColors.info),
@@ -49,7 +54,6 @@ class SpProfileScreen extends StatelessWidget {
                 _menuItem(Icons.description_outlined, 'Terms & Policies', 'Service agreements', AppColors.textSecondary),
               ]),
               const SizedBox(height: 24),
-              // Logout
               Container(
                 width: double.infinity,
                 height: 52,
@@ -102,23 +106,37 @@ class SpProfileScreen extends StatelessWidget {
             padding: const EdgeInsets.all(28),
             child: Column(
               children: [
-                // Avatar with ring
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white.withOpacity(0.3), width: 2.5),
-                  ),
-                  child: CircleAvatar(
-                    radius: 42,
-                    backgroundColor: Colors.white,
-                    child: Text('J', style: AppTypography.displayMedium.copyWith(color: AppColors.primary)),
-                  ),
+                Stack(
+                  alignment: Alignment.bottomRight,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white.withOpacity(0.3), width: 2.5),
+                      ),
+                      child: CircleAvatar(
+                        radius: 42,
+                        backgroundColor: Colors.white,
+                        child: Text((FirebaseAuth.instance.currentUser?.displayName ?? 'U').substring(0, 1).toUpperCase(), style: AppTypography.displayMedium.copyWith(color: AppColors.primary)),
+                      ),
+                    ),
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.greenAccent,
+                        border: Border.all(color: Colors.white, width: 2.5),
+                      ),
+                      child: const Icon(Icons.check_rounded, size: 14, color: Colors.white),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 16),
-                Text('JSV', style: AppTypography.headingLarge.copyWith(color: Colors.white, fontWeight: FontWeight.w800)),
+                Text(FirebaseAuth.instance.currentUser?.displayName ?? 'User', style: AppTypography.headingLarge.copyWith(color: Colors.white, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 4),
-                Text('jsv@gmail.com', style: AppTypography.bodySmall.copyWith(color: Colors.white.withOpacity(0.7))),
+                Text(FirebaseAuth.instance.currentUser?.email ?? '', style: AppTypography.bodySmall.copyWith(color: Colors.white.withOpacity(0.7))),
                 const SizedBox(height: 12),
                 Wrap(
                   alignment: WrapAlignment.center,
@@ -129,6 +147,26 @@ class SpProfileScreen extends StatelessWidget {
                     _profileBadge(Icons.workspace_premium_rounded, 'Pro', Colors.amberAccent),
                     _profileBadge(Icons.star_rounded, '4.8', Colors.white),
                   ],
+                ),
+                const SizedBox(height: 12),
+                Material(
+                  color: Colors.white.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(10),
+                  child: InkWell(
+                    onTap: () {},
+                    borderRadius: BorderRadius.circular(10),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.share_rounded, size: 14, color: Colors.white),
+                          const SizedBox(width: 6),
+                          Text('Share Profile', style: AppTypography.labelSmall.copyWith(color: Colors.white, fontSize: 11)),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -196,6 +234,71 @@ class SpProfileScreen extends StatelessWidget {
 
   Widget _vDivider() => Container(width: 1, height: 44, color: AppColors.border.withOpacity(0.5));
 
+  Widget _buildAccountLevelCard() {
+    const level = 'Silver';
+    const progress = 0.65;
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border.withOpacity(0.5)),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 3))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFC0C0C0).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.card_membership_rounded, size: 24, color: Color(0xFFC0C0C0)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Account Level', style: AppTypography.labelMedium),
+                    Text('$level Member', style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiary, fontSize: 11)),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFC0C0C0).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(level, style: AppTypography.labelSmall.copyWith(color: const Color(0xFFC0C0C0), fontSize: 11)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text('Progress to Gold', style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiary, fontSize: 10)),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: progress,
+              backgroundColor: AppColors.textTertiary.withOpacity(0.15),
+              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFC0C0C0)),
+              minHeight: 6,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text('${(progress * 100).toInt()}% complete · Unlock at 100 bookings', style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiary, fontSize: 9)),
+        ],
+      ),
+    );
+  }
+
   Widget _buildCompletionCard() {
     return Container(
       padding: const EdgeInsets.all(18),
@@ -224,7 +327,6 @@ class SpProfileScreen extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text('Add portfolio photos to boost your visibility', style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary, fontSize: 11)),
                 const SizedBox(height: 8),
-                // Progress bar
                 ClipRRect(
                   borderRadius: BorderRadius.circular(4),
                   child: LinearProgressIndicator(
@@ -247,6 +349,58 @@ class SpProfileScreen extends StatelessWidget {
             child: Text('Complete', style: AppTypography.labelSmall.copyWith(color: Colors.white)),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildQuickLinks() {
+    final links = [
+      {'icon': Icons.account_balance_wallet_rounded, 'label': 'Wallet', 'color': AppColors.primary},
+      {'icon': Icons.help_outline_rounded, 'label': 'Help', 'color': AppColors.info},
+      {'icon': Icons.description_outlined, 'label': 'Documents', 'color': const Color(0xFFF59E0B)},
+      {'icon': Icons.card_giftcard_rounded, 'label': 'Refer', 'color': const Color(0xFF8B5CF6)},
+    ];
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: links.map((link) {
+          return Padding(
+            padding: EdgeInsets.only(right: link != links.last ? 12 : 0),
+            child: Material(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              elevation: 0,
+              child: InkWell(
+                onTap: () {},
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.border.withOpacity(0.5)),
+                  ),
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: (link['color'] as Color).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(link['icon'] as IconData, size: 20, color: link['color'] as Color),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(link['label'] as String, style: AppTypography.labelSmall.copyWith(fontSize: 11)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
@@ -287,32 +441,32 @@ class SpProfileScreen extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(12),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, size: 20, color: color),
             ),
-            child: Icon(icon, size: 20, color: color),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: AppTypography.labelMedium),
-                const SizedBox(height: 2),
-                Text(subtitle, style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiary, fontSize: 11)),
-              ],
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: AppTypography.labelMedium),
+                  const SizedBox(height: 2),
+                  Text(subtitle, style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiary, fontSize: 11)),
+                ],
+              ),
             ),
-          ),
-          const Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.textTertiary),
-        ],
+            Icon(Icons.chevron_right_rounded, size: 20, color: color.withOpacity(0.5)),
+          ],
+        ),
       ),
-    ),
     );
   }
 }

@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../config/colors.dart';
 import '../../config/typography.dart';
+import '../../config/assets.dart';
+import '../../services/auth_service.dart';
+import '../../services/api_service.dart';
 import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  final void Function(bool isServiceProvider) onLoginSuccess;
+  final void Function(bool isServiceProvider, {String? email}) onLoginSuccess;
   const LoginScreen({super.key, required this.onLoginSuccess});
 
   @override
@@ -27,15 +30,62 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _handleLogin() {
+  final _authService = AuthService();
+
+  void _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
-    Future.delayed(const Duration(seconds: 2), () {
+    try {
+      await _authService.signInWithEmail(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+      // Sync user to MongoDB
+      try { await ApiService().post('/api/auth/sync'); } catch (_) {}
       if (mounted) {
         setState(() => _isLoading = false);
-        widget.onLoginSuccess(_selectedType == 1);
+        final userEmail = _authService.currentUser?.email ?? _emailController.text.trim();
+        widget.onLoginSuccess(_selectedType == 1, email: userEmail);
       }
-    });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AuthService.getErrorMessage(e)),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  void _handleGoogleSignIn() async {
+    setState(() => _isLoading = true);
+    try {
+      final result = await _authService.signInWithGoogle();
+      if (result == null) {
+        if (mounted) setState(() => _isLoading = false);
+        return; // User cancelled
+      }
+      // Sync user to MongoDB
+      try { await ApiService().post('/api/auth/sync'); } catch (_) {}
+      if (mounted) {
+        setState(() => _isLoading = false);
+        final userEmail = result.user?.email ?? '';
+        widget.onLoginSuccess(_selectedType == 1, email: userEmail);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AuthService.getErrorMessage(e)),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -100,7 +150,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF10B981), Color(0xFF059669), Color(0xFF1E3A5F)],
+          colors: [Color(0xFF10B981), Color(0xFF10B981)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -116,7 +166,7 @@ class _LoginScreenState extends State<LoginScreen> {
               height: 200,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.06),
+                color: const Color(0xFF10B981).withOpacity(0.08),
               ),
             ),
           ),
@@ -128,7 +178,7 @@ class _LoginScreenState extends State<LoginScreen> {
               height: 260,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.04),
+                color: const Color(0xFF10B981).withOpacity(0.06),
               ),
             ),
           ),
@@ -140,7 +190,7 @@ class _LoginScreenState extends State<LoginScreen> {
               height: 80,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.08),
+                color: const Color(0xFF10B981).withOpacity(0.1),
               ),
             ),
           ),
@@ -153,17 +203,32 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   // Logo
                   Container(
-                    width: 80,
-                    height: 80,
+                    width: 140,
+                    height: 140,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(20),
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(28),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF10B981).withOpacity(0.3),
+                          blurRadius: 24,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
                     ),
-                    child: const Icon(Icons.home_work_rounded, color: Colors.white, size: 44),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(28),
+                      child: Image.asset(
+                        AppAssets.logo,
+                        width: 140,
+                        height: 140,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 28),
                   Text(
-                    'YEstateHub',
+                    'YestateHub',
                     style: AppTypography.displayMedium.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.w800,
@@ -203,9 +268,9 @@ class _LoginScreenState extends State<LoginScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
+        color: const Color(0xFF10B981).withOpacity(0.15),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
+        border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -224,7 +289,7 @@ class _LoginScreenState extends State<LoginScreen> {
       padding: const EdgeInsets.fromLTRB(24, 40, 24, 32),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF10B981), Color(0xFF059669)],
+          colors: [Color(0xFF10B981), Color(0xFF10B981)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -236,17 +301,32 @@ class _LoginScreenState extends State<LoginScreen> {
       child: Column(
         children: [
           Container(
-            width: 64,
-            height: 64,
+            width: 100,
+            height: 100,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(18),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(22),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF10B981).withOpacity(0.3),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+              ],
             ),
-            child: const Icon(Icons.home_work_rounded, color: Colors.white, size: 36),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(22),
+              child: Image.asset(
+                AppAssets.logo,
+                width: 100,
+                height: 100,
+                fit: BoxFit.contain,
+              ),
+            ),
           ),
           const SizedBox(height: 16),
           Text(
-            'YEstateHub',
+            'YestateHub',
             style: AppTypography.displaySmall.copyWith(color: Colors.white, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 6),
@@ -340,7 +420,29 @@ class _LoginScreenState extends State<LoginScreen> {
               Text('Remember me', style: AppTypography.bodySmall.copyWith(color: AppColors.textPrimary)),
               const Spacer(),
               GestureDetector(
-                onTap: () {},
+                onTap: () async {
+                  final email = _emailController.text.trim();
+                  if (email.isEmpty || !email.contains('@')) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Enter your email first'), backgroundColor: AppColors.error),
+                    );
+                    return;
+                  }
+                  try {
+                    await _authService.resetPassword(email);
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Password reset email sent!'), backgroundColor: AppColors.primary),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(AuthService.getErrorMessage(e)), backgroundColor: AppColors.error),
+                      );
+                    }
+                  }
+                },
                 child: Text(
                   'Forgot Password?',
                   style: AppTypography.bodySmall.copyWith(
@@ -392,7 +494,7 @@ class _LoginScreenState extends State<LoginScreen> {
           // Social login buttons
           SizedBox(
             width: double.infinity,
-            child: _buildSocialButton(Icons.g_mobiledata_rounded, 'Google', const Color(0xFFEA4335)),
+            child: _buildSocialButton(Icons.g_mobiledata_rounded, 'Google', const Color(0xFFEA4335), onTap: _handleGoogleSignIn),
           ),
           const SizedBox(height: 16),
           SizedBox(
@@ -407,7 +509,7 @@ class _LoginScreenState extends State<LoginScreen> {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => SignUpScreen(onSignUpSuccess: (isSP) => widget.onLoginSuccess(isSP)),
+                  builder: (_) => SignUpScreen(onSignUpSuccess: (isSP, {String? email}) => widget.onLoginSuccess(isSP, email: email)),
                 ),
               ),
               child: RichText(
@@ -484,11 +586,11 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildSocialButton(IconData icon, String label, Color iconColor) {
+  Widget _buildSocialButton(IconData icon, String label, Color iconColor, {VoidCallback? onTap}) {
     return SizedBox(
       height: 48,
       child: OutlinedButton(
-        onPressed: () {},
+        onPressed: _isLoading ? null : onTap,
         style: OutlinedButton.styleFrom(
           side: const BorderSide(color: AppColors.border),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

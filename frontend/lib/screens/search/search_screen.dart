@@ -5,9 +5,9 @@ import '../../config/typography.dart';
 import '../../config/responsive.dart';
 import '../../config/assets.dart';
 import '../../data/mock_data.dart';
+import '../../services/property_store.dart';
 import '../../models/property.dart';
 import '../../widgets/common/property_card.dart';
-import '../../widgets/common/search_bar_widget.dart';
 import 'widgets/filter_panel.dart';
 import 'widgets/sort_options.dart';
 
@@ -20,12 +20,26 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
-  bool _showFilters = false;
   String _sortBy = 'Relevance';
   bool _isMapView = false;
   PropertyFilter _filter = const PropertyFilter();
 
-  List<Property> get _filteredProperties => MockData.featuredProperties;
+  // ── Search section state ──
+  int _selectedIntent = 0; // 0 = Buy, 1 = Rent
+  int _selectedPropertyType = 0; // 0 = All Types
+
+  static const List<String> _propertyTypes = [
+    'All Types',
+    'Plot',
+    'Commercial Land',
+    'Flat',
+    'Individual House',
+    'Individual Villa',
+    'Complex',
+    'Commercial Building',
+  ];
+
+  List<Property> get _filteredProperties => PropertyStore.instance.properties;
 
   @override
   void dispose() {
@@ -42,53 +56,336 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   // ═══════════════════════════════════════════════════════════════
+  // SHARED SEARCH SECTION — Card-based "Find Your Dream Property"
+  // ═══════════════════════════════════════════════════════════════
+  Widget _buildSearchSection(BuildContext context) {
+    final isMobile = Responsive.isMobile(context);
+    final hPad = isMobile ? 16.0 : 24.0;
+
+    return Container(
+      color: AppColors.background,
+      padding: EdgeInsets.fromLTRB(hPad, isMobile ? 16 : 24, hPad, isMobile ? 16 : 24),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1280),
+          child: Container(
+            padding: EdgeInsets.all(isMobile ? 18 : 24),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.border.withOpacity(0.6)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── Header: Icon + Title ──
+                Row(
+                  children: [
+                    Container(
+                      width: isMobile ? 36 : 42,
+                      height: isMobile ? 36 : 42,
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryExtraLight,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        Icons.home_rounded,
+                        size: isMobile ? 20 : 22,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Find Your Dream Property',
+                      style: (isMobile ? AppTypography.headingSmall : AppTypography.headingMedium).copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: isMobile ? 18 : 22),
+
+                // ── Buy / Rent Tabs ──
+                _buildBuyRentTabs(isMobile),
+                SizedBox(height: isMobile ? 14 : 16),
+
+                // ── Search Input with Filter Icon ──
+                _buildSearchInput(isMobile),
+                SizedBox(height: isMobile ? 14 : 16),
+
+                // ── Property Type Chips ──
+                _buildPropertyTypeChips(isMobile),
+                SizedBox(height: isMobile ? 16 : 20),
+
+                // ── Search Properties Button ──
+                _buildSearchButton(isMobile),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Buy / Rent Toggle Tabs ──
+  Widget _buildBuyRentTabs(bool isMobile) {
+    return Row(
+      children: [
+        Expanded(
+          child: GestureDetector(
+            onTap: () => setState(() => _selectedIntent = 0),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              height: isMobile ? 48 : 52,
+              decoration: BoxDecoration(
+                color: _selectedIntent == 0 ? AppColors.primary : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: _selectedIntent == 0 ? AppColors.primary : AppColors.border,
+                  width: 1.5,
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.shopping_bag_outlined,
+                    size: isMobile ? 18 : 20,
+                    color: _selectedIntent == 0 ? Colors.white : AppColors.textSecondary,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Buy',
+                    style: AppTypography.labelLarge.copyWith(
+                      color: _selectedIntent == 0 ? Colors.white : AppColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: isMobile ? 15 : 16,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: GestureDetector(
+            onTap: () => setState(() => _selectedIntent = 1),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              height: isMobile ? 48 : 52,
+              decoration: BoxDecoration(
+                color: _selectedIntent == 1 ? AppColors.primary : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: _selectedIntent == 1 ? AppColors.primary : AppColors.border,
+                  width: 1.5,
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.vpn_key_outlined,
+                    size: isMobile ? 18 : 20,
+                    color: _selectedIntent == 1 ? Colors.white : AppColors.textSecondary,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Rent',
+                    style: AppTypography.labelLarge.copyWith(
+                      color: _selectedIntent == 1 ? Colors.white : AppColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: isMobile ? 15 : 16,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Search Input Field with Location + Filter Icons ──
+  Widget _buildSearchInput(bool isMobile) {
+    return Container(
+      height: isMobile ? 50 : 54,
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border, width: 1.5),
+      ),
+      child: Row(
+        children: [
+          const SizedBox(width: 14),
+          SvgPicture.asset(
+            AppAssets.icLocation,
+            width: 20,
+            height: 20,
+            colorFilter: const ColorFilter.mode(AppColors.primary, BlendMode.srcIn),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextField(
+              controller: _searchController,
+              style: AppTypography.bodyMedium.copyWith(fontSize: isMobile ? 14 : 15),
+              decoration: InputDecoration(
+                hintText: 'City, locality, property name or ID...',
+                hintStyle: AppTypography.bodyMedium.copyWith(
+                  color: AppColors.textTertiary,
+                  fontSize: isMobile ? 14 : 15,
+                ),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
+                isDense: true,
+              ),
+            ),
+          ),
+          // Filter icon button
+          GestureDetector(
+            onTap: () => _showMobileFilters(),
+            child: Container(
+              width: isMobile ? 44 : 48,
+              height: double.infinity,
+              decoration: BoxDecoration(
+                border: Border(
+                  left: BorderSide(color: AppColors.border, width: 1),
+                ),
+              ),
+              child: Center(
+                child: SvgPicture.asset(
+                  AppAssets.icFilter,
+                  width: 20,
+                  height: 20,
+                  colorFilter: const ColorFilter.mode(AppColors.textSecondary, BlendMode.srcIn),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Property Type Chips (Horizontal Scrollable) ──
+  Widget _buildPropertyTypeChips(bool isMobile) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: List.generate(_propertyTypes.length, (index) {
+          final isSelected = _selectedPropertyType == index;
+          return Padding(
+            padding: EdgeInsets.only(right: index < _propertyTypes.length - 1 ? 10 : 0),
+            child: GestureDetector(
+              onTap: () => setState(() => _selectedPropertyType = index),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: EdgeInsets.symmetric(
+                  horizontal: isMobile ? 14 : 18,
+                  vertical: isMobile ? 9 : 10,
+                ),
+                decoration: BoxDecoration(
+                  color: isSelected ? AppColors.primary : Colors.transparent,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: isSelected ? AppColors.primary : AppColors.border,
+                    width: 1.5,
+                  ),
+                ),
+                child: Text(
+                  _propertyTypes[index],
+                  style: AppTypography.labelMedium.copyWith(
+                    color: isSelected ? Colors.white : AppColors.textSecondary,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                    fontSize: isMobile ? 13 : 14,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  // ── Search Properties Button ──
+  Widget _buildSearchButton(bool isMobile) {
+    return GestureDetector(
+      onTap: () {
+        // Trigger search / navigate to results
+      },
+      child: Container(
+        width: double.infinity,
+        height: isMobile ? 50 : 54,
+        decoration: BoxDecoration(
+          gradient: AppColors.primaryGradient,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withOpacity(0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.search_rounded,
+              color: Colors.white,
+              size: isMobile ? 20 : 22,
+            ),
+            const SizedBox(width: 10),
+            Text(
+              'Search Properties',
+              style: AppTypography.labelLarge.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: isMobile ? 15 : 16,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════
   // MOBILE SEARCH
   // ═══════════════════════════════════════════════════════════════
   Widget _buildMobileSearch() {
     return Column(
       children: [
-        // Search header
-        Container(
-          color: AppColors.surface,
-          padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 8, 16, 12),
-          child: Column(
+        // ── Search Section (Buy/Rent + Input + Types + Button) ──
+        _buildSearchSection(context),
+        const Divider(height: 1, color: AppColors.border),
+        // ── Results header ──
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Search bar + back
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: () => Navigator.maybePop(context),
-                    icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 36),
-                  ),
-                  Expanded(
-                    child: SearchBarWidget(
-                      controller: _searchController,
-                      expanded: true,
-                      autofocus: true,
-                    ),
-                  ),
-                ],
+              Text(
+                '${_filteredProperties.length} Properties Found',
+                style: AppTypography.labelMedium.copyWith(color: AppColors.primary),
               ),
-              const SizedBox(height: 10),
-              // Filter chips + sort
               Row(
                 children: [
-                  Expanded(
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          _buildActiveFilterChip('Gachibowli'),
-                          const SizedBox(width: 8),
-                          _buildFilterButton(),
-                        ],
-                      ),
-                    ),
+                  SortOptions(
+                    selectedSort: _sortBy,
+                    onSortChanged: (s) => setState(() => _sortBy = s),
                   ),
                   const SizedBox(width: 8),
-                  // Map toggle
                   GestureDetector(
                     onTap: () => setState(() => _isMapView = !_isMapView),
                     child: Container(
@@ -110,25 +407,7 @@ class _SearchScreenState extends State<SearchScreen> {
             ],
           ),
         ),
-        const Divider(height: 1),
-        // Results header
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '${_filteredProperties.length} Properties Found',
-                style: AppTypography.labelMedium.copyWith(color: AppColors.primary),
-              ),
-              SortOptions(
-                selectedSort: _sortBy,
-                onSortChanged: (s) => setState(() => _sortBy = s),
-              ),
-            ],
-          ),
-        ),
-        // Results
+        // ── Results ──
         Expanded(
           child: _isMapView
               ? _buildMapPlaceholder()
@@ -154,63 +433,10 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget _buildDesktopSearch() {
     return Column(
       children: [
-        // Desktop search bar
-        Container(
-          color: AppColors.surface,
-          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1280),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: SearchBarWidget(
-                      controller: _searchController,
-                      expanded: true,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  SortOptions(
-                    selectedSort: _sortBy,
-                    onSortChanged: (s) => setState(() => _sortBy = s),
-                  ),
-                  const SizedBox(width: 12),
-                  // Map toggle
-                  GestureDetector(
-                    onTap: () => setState(() => _isMapView = !_isMapView),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: _isMapView ? AppColors.primaryLight : AppColors.background,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.map_rounded,
-                            size: 18,
-                            color: _isMapView ? AppColors.primary : AppColors.textSecondary,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Map',
-                            style: AppTypography.labelMedium.copyWith(
-                              color: _isMapView ? AppColors.primary : AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        const Divider(height: 1),
-        // Three-column layout: Filters | Listings | Map
+        // ── Search Section (Buy/Rent + Input + Types + Button) ──
+        _buildSearchSection(context),
+        const Divider(height: 1, color: AppColors.border),
+        // ── Three-column layout: Filters | Listings | Map ──
         Expanded(
           child: Center(
             child: ConstrainedBox(
@@ -239,19 +465,61 @@ class _SearchScreenState extends State<SearchScreen> {
                       children: [
                         Padding(
                           padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-                          child: Text(
-                            '${_filteredProperties.length} Properties Found',
-                            style: AppTypography.labelLarge.copyWith(color: AppColors.primary),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                '${_filteredProperties.length} Properties Found',
+                                style: AppTypography.labelLarge.copyWith(color: AppColors.primary),
+                              ),
+                              Row(
+                                children: [
+                                  SortOptions(
+                                    selectedSort: _sortBy,
+                                    onSortChanged: (s) => setState(() => _sortBy = s),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  GestureDetector(
+                                    onTap: () => setState(() => _isMapView = !_isMapView),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                      decoration: BoxDecoration(
+                                        color: _isMapView ? AppColors.primaryLight : AppColors.background,
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(color: AppColors.border),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.map_rounded,
+                                            size: 18,
+                                            color: _isMapView ? AppColors.primary : AppColors.textSecondary,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            'Map',
+                                            style: AppTypography.labelMedium.copyWith(
+                                              color: _isMapView ? AppColors.primary : AppColors.textSecondary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
                         Expanded(
                           child: GridView.builder(
                             padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: _isMapView ? 1 : Responsive.value<int>(context, mobile: 1, tablet: 2, desktop: 4),
+                              crossAxisCount: _isMapView ? 1 : Responsive.value<int>(context, mobile: 1, tablet: 2, desktop: 3),
                               crossAxisSpacing: 16,
                               mainAxisSpacing: 16,
-                              childAspectRatio: _isMapView ? 0.85 : Responsive.value<double>(context, mobile: 0.85, tablet: 0.68, desktop: 0.72),
+                              childAspectRatio: _isMapView ? 0.85 : Responsive.value<double>(context, mobile: 0.85, tablet: 0.68, desktop: 0.68),
                             ),
                             itemCount: _filteredProperties.length,
                             itemBuilder: (context, index) {
@@ -279,49 +547,6 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildActiveFilterChip(String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-      decoration: BoxDecoration(
-        color: AppColors.primaryLight,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: AppTypography.labelMedium.copyWith(color: AppColors.primaryDark),
-          ),
-          const SizedBox(width: 4),
-          Icon(Icons.close, size: 14, color: AppColors.primaryDark),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFilterButton() {
-    return GestureDetector(
-      onTap: () => _showMobileFilters(),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SvgPicture.asset(AppAssets.icFilter, width: 16, height: 16, colorFilter: const ColorFilter.mode(AppColors.textPrimary, BlendMode.srcIn)),
-            const SizedBox(width: 6),
-            Text('Filters', style: AppTypography.labelMedium),
-          ],
-        ),
-      ),
     );
   }
 

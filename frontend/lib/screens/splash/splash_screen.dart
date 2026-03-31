@@ -59,7 +59,7 @@ class _SplashScreenState extends State<SplashScreen>
       body: Container(
         color: Colors.white,
         child: Center(
-          child: AnimatedBuilder(
+          child: _AnimatedBuilder(
             listenable: _controller,
             builder: (context, child) {
               return Opacity(
@@ -103,11 +103,11 @@ class _SplashScreenState extends State<SplashScreen>
   }
 }
 
-class AnimatedBuilder extends AnimatedWidget {
+class _AnimatedBuilder extends AnimatedWidget {
   final Widget? child;
   final Widget Function(BuildContext, Widget?) builder;
 
-  const AnimatedBuilder({
+  const _AnimatedBuilder({
     super.key,
     required super.listenable,
     required this.builder,

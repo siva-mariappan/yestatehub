@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../config/colors.dart';
 import '../../config/typography.dart';
 import '../../config/responsive.dart';
@@ -25,12 +26,18 @@ class SpHomeScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildWelcomeBanner(context, isMobile),
-              const SizedBox(height: 24),
+              const SizedBox(height: 28),
               _buildStatsRow(isMobile),
+              const SizedBox(height: 28),
+              _buildWeeklyEarningsChart(),
               const SizedBox(height: 28),
               _buildSectionHeader('Quick Actions', 'Manage your services'),
               const SizedBox(height: 14),
               _buildQuickActions(isMobile, context),
+              const SizedBox(height: 28),
+              _buildSectionHeader('Upcoming Appointments', 'Next 2 scheduled services'),
+              const SizedBox(height: 14),
+              _buildUpcomingHighlights(isMobile),
               const SizedBox(height: 28),
               _buildSectionHeader("Today's Schedule", '4 appointments'),
               const SizedBox(height: 14),
@@ -59,17 +66,18 @@ class SpHomeScreen extends StatelessWidget {
           ],
         ),
         const Spacer(),
-        GestureDetector(
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppColors.primaryExtraLight,
-              borderRadius: BorderRadius.circular(8),
+        if (onTap != null)
+          GestureDetector(
+            onTap: onTap,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.primaryExtraLight,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text('View All', style: AppTypography.labelSmall.copyWith(color: AppColors.primary)),
             ),
-            child: Text('View All', style: AppTypography.labelSmall.copyWith(color: AppColors.primary)),
           ),
-        ),
       ],
     );
   }
@@ -90,11 +98,9 @@ class SpHomeScreen extends StatelessWidget {
       ),
       child: Stack(
         children: [
-          // Decorative elements
           Positioned(top: -30, right: -20, child: _decorCircle(120, 0.06)),
           Positioned(bottom: -20, left: 40, child: _decorCircle(80, 0.05)),
           Positioned(top: 20, right: 80, child: _decorCircle(40, 0.08)),
-          // Content
           Padding(
             padding: EdgeInsets.all(isMobile ? 22 : 32),
             child: Row(
@@ -103,35 +109,80 @@ class SpHomeScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(width: 6, height: 6, decoration: const BoxDecoration(color: Colors.greenAccent, shape: BoxShape.circle)),
-                            const SizedBox(width: 6),
-                            Text('Online', style: AppTypography.labelSmall.copyWith(color: Colors.white, fontSize: 10)),
-                          ],
-                        ),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(width: 6, height: 6, decoration: BoxDecoration(color: Colors.greenAccent, shape: BoxShape.circle)),
+                                const SizedBox(width: 6),
+                                Text('Online', style: AppTypography.labelSmall.copyWith(color: Colors.white, fontSize: 10)),
+                              ],
+                            ),
+                          ),
+                          const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.white.withOpacity(0.3)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.toggle_off_rounded, size: 16, color: Colors.white.withOpacity(0.8)),
+                                const SizedBox(width: 4),
+                                Text('Availability', style: AppTypography.labelSmall.copyWith(color: Colors.white, fontSize: 9)),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 14),
-                      Text('Good Morning, JSV!', style: (isMobile ? AppTypography.headingMedium : AppTypography.headingLarge).copyWith(color: Colors.white, fontWeight: FontWeight.w800)),
+                      Text('Good Morning, ${FirebaseAuth.instance.currentUser?.displayName?.split(' ').first ?? 'User'}!', style: (isMobile ? AppTypography.headingMedium : AppTypography.headingLarge).copyWith(color: Colors.white, fontWeight: FontWeight.w800)),
                       const SizedBox(height: 8),
                       Text(
                         'You have 3 new bookings and 2 pending\nrequests waiting for you today.',
                         style: AppTypography.bodyMedium.copyWith(color: Colors.white.withOpacity(0.85), height: 1.5),
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.white.withOpacity(0.2)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.trending_up_rounded, size: 16, color: Colors.white),
+                            const SizedBox(width: 8),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text('Today Earning', style: AppTypography.labelSmall.copyWith(color: Colors.white.withOpacity(0.7), fontSize: 9)),
+                                Text('\u20B91,250.00', style: AppTypography.labelLarge.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
                       Wrap(
                         spacing: 10,
                         runSpacing: 10,
                         children: [
                           _bannerButton('View Bookings', Icons.calendar_today_rounded, true),
-                          _bannerButton('Go Online', Icons.wifi_tethering_rounded, false),
+                          _bannerButton('Manage Services', Icons.home_repair_service_rounded, false),
                         ],
                       ),
                     ],
@@ -150,7 +201,7 @@ class SpHomeScreen extends StatelessWidget {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.business_center_rounded, size: 44, color: Colors.white),
+                        Icon(Icons.business_center_rounded, size: 44, color: Colors.white),
                         const SizedBox(height: 8),
                         Text('Provider', style: AppTypography.labelSmall.copyWith(color: Colors.white70)),
                       ],
@@ -194,10 +245,10 @@ class SpHomeScreen extends StatelessWidget {
 
   Widget _buildStatsRow(bool isMobile) {
     final stats = [
-      {'label': 'Total Bookings', 'value': '156', 'change': '+12%', 'icon': Icons.calendar_today_rounded, 'color': AppColors.primary, 'bgColor': AppColors.primaryExtraLight},
-      {'label': 'Active Jobs', 'value': '8', 'change': '+3', 'icon': Icons.work_rounded, 'color': AppColors.info, 'bgColor': AppColors.infoLight},
-      {'label': 'Revenue', 'value': '\u20B924.5K', 'change': '+18%', 'icon': Icons.account_balance_wallet_rounded, 'color': const Color(0xFFF59E0B), 'bgColor': const Color(0xFFFEF3C7)},
-      {'label': 'Rating', 'value': '4.8', 'change': '\u2605', 'icon': Icons.star_rounded, 'color': const Color(0xFF8B5CF6), 'bgColor': const Color(0xFFF3E8FF)},
+      {'label': 'Total Bookings', 'value': '156', 'trend': '+12%', 'icon': Icons.calendar_today_rounded, 'color': AppColors.primary, 'bgColor': AppColors.primaryExtraLight},
+      {'label': 'Active Jobs', 'value': '8', 'trend': '+3', 'icon': Icons.work_rounded, 'color': AppColors.info, 'bgColor': AppColors.infoLight},
+      {'label': 'Revenue', 'value': '\u20B924.5K', 'trend': '+18%', 'icon': Icons.account_balance_wallet_rounded, 'color': const Color(0xFFF59E0B), 'bgColor': const Color(0xFFFEF3C7)},
+      {'label': 'Rating', 'value': '4.8', 'trend': '\u2605', 'icon': Icons.star_rounded, 'color': const Color(0xFF8B5CF6), 'bgColor': const Color(0xFFF3E8FF)},
     ];
 
     if (isMobile) {
@@ -247,12 +298,19 @@ class SpHomeScreen extends StatelessWidget {
               ),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.primaryExtraLight,
+                  color: (stat['color'] as Color).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: Text(stat['change'] as String, style: AppTypography.labelSmall.copyWith(color: AppColors.primary, fontSize: 10)),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.trending_up_rounded, size: 12, color: stat['color'] as Color),
+                    const SizedBox(width: 3),
+                    Text(stat['trend'] as String, style: AppTypography.labelSmall.copyWith(color: stat['color'] as Color, fontSize: 10, fontWeight: FontWeight.w600)),
+                  ],
+                ),
               ),
             ],
           ),
@@ -260,6 +318,63 @@ class SpHomeScreen extends StatelessWidget {
           Text(stat['value'] as String, style: AppTypography.headingLarge),
           const SizedBox(height: 2),
           Text(stat['label'] as String, style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiary)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWeeklyEarningsChart() {
+    final weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final earnings = [2400, 2210, 2290, 2000, 2181, 2500, 2100];
+    final maxEarning = earnings.reduce((a, b) => a > b ? a : b).toDouble();
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border.withOpacity(0.5)),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Weekly Earnings', style: AppTypography.labelLarge.copyWith(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 20),
+          SizedBox(
+            height: 180,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: List.generate(7, (i) {
+                final height = (earnings[i] / maxEarning) * 150;
+                final isToday = i == 2;
+                return Expanded(
+                  child: Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Container(
+                      width: 28,
+                      height: height,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: isToday
+                              ? [AppColors.primary, AppColors.primaryDark]
+                              : [AppColors.primaryExtraLight, AppColors.primaryLight ?? AppColors.primary.withOpacity(0.5)],
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                        ),
+                        borderRadius: const BorderRadius.only(topLeft: Radius.circular(8), topRight: Radius.circular(8)),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(weekDays[i], style: AppTypography.labelSmall.copyWith(color: isToday ? AppColors.primary : AppColors.textTertiary, fontWeight: isToday ? FontWeight.w700 : FontWeight.w500, fontSize: 11)),
+                  ],
+                ),
+                );
+              }),
+            ),
+          ),
         ],
       ),
     );
@@ -293,34 +408,130 @@ class SpHomeScreen extends StatelessWidget {
           _navigateTo(context, const SpAddServiceScreen());
         }
       },
-      child: Container(
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.border.withOpacity(0.5)),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 3))],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: action['bg'] as Color,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(action['icon'] as IconData, size: 24, color: action['color'] as Color),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                action['label'] as String,
+                style: AppTypography.labelSmall.copyWith(color: AppColors.textPrimary, height: 1.3),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUpcomingHighlights(bool isMobile) {
+    final upcoming = [
+      {'time': '9:00 AM', 'title': 'Home Cleaning', 'location': 'Apartment 302, Green Park', 'client': 'Rahul Sharma', 'status': 'Confirmed', 'color': AppColors.primary, 'icon': Icons.cleaning_services_rounded},
+      {'time': '11:30 AM', 'title': 'Wall Painting', 'location': 'Villa Park, Kondapur', 'client': 'Priya Patel', 'status': 'In Progress', 'color': AppColors.info, 'icon': Icons.format_paint_rounded},
+    ];
+
+    return Column(
+      children: upcoming.asMap().entries.map((e) => _buildUpcomingCard(e.value, e.key == upcoming.length - 1)).toList(),
+    );
+  }
+
+  Widget _buildUpcomingCard(Map<String, dynamic> schedule, bool isLast) {
+    return Container(
+      margin: EdgeInsets.only(bottom: isLast ? 0 : 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border.withOpacity(0.5)),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 3))],
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: action['bg'] as Color,
-              borderRadius: BorderRadius.circular(14),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Container(
+              width: 4,
+              height: 80,
+              decoration: BoxDecoration(
+                color: schedule['color'] as Color,
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
-            child: Icon(action['icon'] as IconData, size: 24, color: action['color'] as Color),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            action['label'] as String,
-            style: AppTypography.labelSmall.copyWith(color: AppColors.textPrimary, height: 1.3),
-            textAlign: TextAlign.center,
-          ),
-        ],
+            const SizedBox(width: 16),
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: (schedule['color'] as Color).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(schedule['icon'] as IconData, size: 24, color: schedule['color'] as Color),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(child: Text(schedule['title'] as String, style: AppTypography.labelLarge)),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: (schedule['color'] as Color).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(schedule['status'] as String, style: AppTypography.labelSmall.copyWith(color: schedule['color'] as Color, fontSize: 10)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 4,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.access_time_rounded, size: 13, color: AppColors.textTertiary),
+                          const SizedBox(width: 4),
+                          Text(schedule['time'] as String, style: AppTypography.labelSmall.copyWith(color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.person_outline_rounded, size: 13, color: AppColors.textTertiary),
+                          const SizedBox(width: 4),
+                          Text(schedule['client'] as String, style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary, fontSize: 11)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
-    ),
     );
   }
 
@@ -350,7 +561,15 @@ class SpHomeScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            // Service icon
+            Container(
+              width: 4,
+              height: 70,
+              decoration: BoxDecoration(
+                color: schedule['color'] as Color,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: 14),
             Container(
               width: 50,
               height: 50,
@@ -361,7 +580,6 @@ class SpHomeScreen extends StatelessWidget {
               child: Icon(schedule['icon'] as IconData, size: 24, color: schedule['color'] as Color),
             ),
             const SizedBox(width: 14),
-            // Details
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -397,7 +615,7 @@ class SpHomeScreen extends StatelessWidget {
                         children: [
                           Icon(Icons.access_time_rounded, size: 13, color: AppColors.textTertiary),
                           const SizedBox(width: 4),
-                          Text(schedule['time'] as String, style: AppTypography.labelSmall.copyWith(color: AppColors.primary, fontSize: 11)),
+                          Text(schedule['time'] as String, style: AppTypography.labelSmall.copyWith(color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.w600)),
                         ],
                       ),
                       Row(
@@ -446,7 +664,6 @@ class SpHomeScreen extends StatelessWidget {
         children: [
           Row(
             children: [
-              // Avatar
               Container(
                 width: 42,
                 height: 42,
@@ -472,17 +689,17 @@ class SpHomeScreen extends StatelessWidget {
                   children: [
                     Text(review['name'] as String, style: AppTypography.labelMedium),
                     const SizedBox(height: 3),
-                    Row(
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 2,
+                      runSpacing: 4,
                       children: [
-                        ...List.generate(5, (i) => Padding(
-                          padding: const EdgeInsets.only(right: 2),
-                          child: Icon(
-                            i < (review['rating'] as int) ? Icons.star_rounded : Icons.star_outline_rounded,
-                            size: 14,
-                            color: i < (review['rating'] as int) ? AppColors.amber : AppColors.border,
-                          ),
+                        ...List.generate(5, (i) => Icon(
+                          i < (review['rating'] as int) ? Icons.star_rounded : Icons.star_outline_rounded,
+                          size: 14,
+                          color: i < (review['rating'] as int) ? AppColors.amber : AppColors.border,
                         )),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 4),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(

@@ -5,6 +5,7 @@ import '../../config/typography.dart';
 import '../../config/responsive.dart';
 import '../../config/assets.dart';
 import '../../data/mock_data.dart';
+import '../../services/property_store.dart';
 import '../../models/property.dart';
 import '../../widgets/common/property_card.dart';
 import '../../widgets/common/search_bar_widget.dart';
@@ -35,7 +36,7 @@ class _PropertyListingScreenState extends State<PropertyListingScreen> {
   String _sortBy = 'Relevance';
   PropertyFilter _filter = const PropertyFilter();
 
-  List<Property> get _results => MockData.featuredProperties;
+  List<Property> get _results => PropertyStore.instance.properties;
 
   bool get _isWideScreen => MediaQuery.of(context).size.width > 900;
 

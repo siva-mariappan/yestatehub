@@ -85,7 +85,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
               // ── Nav links — desktop only (now on right side) ──
               if (isDesktop) ...[
                 _searchNavLink(),
-                _navLinkSvg('Analytics', 6, AppAssets.icAnalytic),
+                _navLinkSvg('EstateIQ', 6, AppAssets.icAnalytic),
                 _navLink('Dashboard', 2, Icons.dashboard_outlined),
                 _navLinkSvg('Chat', 3, AppAssets.icMessage),
                 _navLinkSvg('Favourites', 4, AppAssets.icHeart),

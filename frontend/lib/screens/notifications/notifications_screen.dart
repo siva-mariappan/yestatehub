@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../config/colors.dart';
 import '../../config/typography.dart';
+import '../../config/assets.dart';
 
 /// Notifications Screen — notification feed/list
 class NotificationsScreen extends StatefulWidget {
@@ -54,9 +56,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     _Notif(
       type: 'alert',
       title: 'Market Update',
-      body: 'Kokapet property prices increased 8% this quarter. View analytics.',
+      body: 'Kokapet property prices increased 8% this quarter. View EstateIQ.',
       time: '1 day ago',
-      icon: Icons.bar_chart_rounded,
+      svgAsset: AppAssets.icAnalytic,
       color: AppColors.primaryDark,
       isRead: true,
     ),
@@ -191,7 +193,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                 color: n.color.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: Icon(n.icon, size: 22, color: n.color),
+                              child: n.svgAsset != null
+                                  ? SvgPicture.asset(n.svgAsset!, width: 22, height: 22, colorFilter: ColorFilter.mode(n.color, BlendMode.srcIn))
+                                  : Icon(n.icon, size: 22, color: n.color),
                             ),
                             title: Row(
                               children: [
@@ -241,7 +245,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
 class _Notif {
   final String type, title, body, time;
-  final IconData icon;
+  final IconData? icon;
+  final String? svgAsset;
   final Color color;
   bool isRead;
 
@@ -250,7 +255,8 @@ class _Notif {
     required this.title,
     required this.body,
     required this.time,
-    required this.icon,
+    this.icon,
+    this.svgAsset,
     required this.color,
     required this.isRead,
   });

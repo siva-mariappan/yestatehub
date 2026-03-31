@@ -1,0 +1,262 @@
+================================================================================
+   YESTATEHUB — MONGODB ATLAS SETUP GUIDE (Cloud Database)
+================================================================================
+
+OVERVIEW
+--------
+MongoDB Atlas is a cloud-hosted NoSQL database. The FastAPI backend connects
+to it using the Motor async driver. Collections: users, properties,
+conversations, messages.
+
+================================================================================
+STEP 1: CREATE MONGODB ATLAS ACCOUNT
+================================================================================
+
+1. Go to https://www.mongodb.com/cloud/atlas
+2. Click "Try Free" → Sign up (or sign in with Google)
+3. Fill in organization and project name:
+   - Organization: YEstateHub
+   - Project: yestatehub-prod
+
+================================================================================
+STEP 2: CREATE A FREE CLUSTER
+================================================================================
+
+1. After sign-up → click "Build a Database"
+2. Choose deployment:
+   - FREE (M0 Sandbox) — 512MB, perfect for development
+3. Cloud Provider: AWS (or your preference)
+4. Region: Choose nearest to your users (e.g., Mumbai ap-south-1 for India)
+5. Cluster Name: yestatehub-cluster
+6. Click "Create Deployment"
+7. Wait 1-3 minutes for cluster to provision
+
+================================================================================
+STEP 3: CREATE DATABASE USER
+================================================================================
+
+1. You'll be prompted to create a database user
+2. Authentication Method: Password
+3. Username: yestatehub_admin
+4. Password: Click "Autogenerate Secure Password" → COPY AND SAVE IT
+5. Click "Create Database User"
+
+IMPORTANT: Save the username and password securely!
+
+================================================================================
+STEP 4: CONFIGURE NETWORK ACCESS
+================================================================================
+
+1. Left sidebar → Network Access → Add IP Address
+2. For development: Click "Allow Access from Anywhere" (0.0.0.0/0)
+   This allows connections from any IP — fine for development.
+3. For production: Add only your server's IP address
+4. Click "Confirm"
+
+================================================================================
+STEP 5: GET CONNECTION STRING
+================================================================================
+
+1. Left sidebar → Database → Click "Connect" on your cluster
+2. Choose "Drivers"
+3. Driver: Python, Version: 3.12 or later
+4. Copy the connection string. It looks like:
+
+   mongodb+srv://yestatehub_admin:<password>@yestatehub-cluster.xxxxx.mongodb.net/?retryWrites=true&w=majority&appName=yestatehub-cluster
+
+5. Replace <password> with your actual password from Step 3
+6. Add database name before the "?" :
+
+   mongodb+srv://yestatehub_admin:YOUR_PASSWORD@yestatehub-cluster.xxxxx.mongodb.net/yestatehub?retryWrites=true&w=majority
+
+================================================================================
+STEP 6: CONFIGURE BACKEND
+================================================================================
+
+1. Navigate to backend/ directory
+2. Copy the example env file:
+
+   cp .env.example .env
+
+3. Open backend/.env and fill in:
+
+   MONGODB_URI=mongodb+srv://yestatehub_admin:YOUR_PASSWORD@yestatehub-cluster.xxxxx.mongodb.net/yestatehub?retryWrites=true&w=majority
+   MONGODB_DB_NAME=yestatehub
+   FIREBASE_CREDENTIALS_PATH=./firebase-service-account.json
+   ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8080,http://localhost:52279
+
+IMPORTANT: NEVER commit .env to Git! Add to .gitignore:
+   backend/.env
+   backend/firebase-service-account.json
+
+================================================================================
+STEP 7: INSTALL BACKEND DEPENDENCIES
+================================================================================
+
+1. Create Python virtual environment:
+
+   cd backend
+   python3 -m venv venv
+   source venv/bin/activate    # macOS/Linux
+   venv\Scripts\activate       # Windows
+
+2. Install requirements:
+
+   pip install -r requirements.txt
+
+================================================================================
+STEP 8: RUN THE BACKEND
+================================================================================
+
+   cd backend
+   source venv/bin/activate
+   uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+You should see:
+   Connected to MongoDB: yestatehub
+   Uvicorn running on http://0.0.0.0:8000
+
+Open http://localhost:8000/docs for interactive Swagger API docs.
+
+================================================================================
+STEP 9: VERIFY DATABASE CONNECTION
+================================================================================
+
+1. Open browser: http://localhost:8000/health
+   → Should return: {"status": "ok"}
+
+2. Open browser: http://localhost:8000/docs
+   → Interactive Swagger UI showing all endpoints
+
+3. In MongoDB Atlas Console → left sidebar → Browse Collections
+   After the first API call, you should see the "yestatehub" database
+   with collections: users, properties, conversations, messages
+
+================================================================================
+STEP 10: CONNECT FLUTTER FRONTEND
+================================================================================
+
+1. Update the API base URL in:
+   frontend/lib/services/api_service.dart
+
+   static const String baseUrl = 'http://localhost:8000';
+
+   For Android emulator, use: http://10.0.2.2:8000
+   For iOS simulator, use: http://localhost:8000
+   For physical device: use your computer's local IP (e.g., http://192.168.1.5:8000)
+
+2. Also update frontend/.env:
+
+   API_BASE_URL=http://localhost:8000
+
+================================================================================
+DATABASE COLLECTIONS (Auto-created)
+================================================================================
+
+1. users
+   - uid (string, indexed) — Firebase UID
+   - email, name, picture, phone
+   - role: "user" | "service_provider" | "admin"
+   - created_at, last_login
+
+2. properties
+   - owner_uid (string, indexed) — Firebase UID of the lister
+   - title, description, purpose
+   - property_type, transaction_type, furnishing
+   - bedrooms, bathrooms, area_sqft
+   - city, locality, address, pincode, state, district
+   - price, price_per_sqft, negotiable
+   - images[], amenities[], nearby_amenities{}
+   - is_verified, is_rera_approved, no_brokerage
+   - views, enquiries
+   - created_at (indexed), updated_at
+
+3. conversations
+   - property_id (indexed), property_title
+   - participants[] — array of {uid, name, email}
+   - last_message, last_message_time
+   - created_at
+
+4. messages
+   - conversation_id (indexed)
+   - sender_uid, sender_name
+   - text
+   - is_read (boolean)
+   - created_at (indexed)
+
+================================================================================
+API ENDPOINTS REFERENCE
+================================================================================
+
+AUTH:
+  POST   /api/auth/sync          — Sync Firebase user to MongoDB
+  GET    /api/auth/me             — Get current user profile
+
+PROPERTIES:
+  POST   /api/properties/         — Add new property (auth required)
+  GET    /api/properties/         — List properties with filters (public)
+  GET    /api/properties/my       — My listed properties (auth required)
+  GET    /api/properties/{id}     — Get property detail (public)
+  PUT    /api/properties/{id}     — Update property (owner only)
+  DELETE /api/properties/{id}     — Delete property (owner only)
+
+CHAT:
+  POST   /api/chat/conversations              — Create/get conversation
+  GET    /api/chat/conversations              — List my conversations
+  GET    /api/chat/conversations/{id}/messages — Get messages
+  POST   /api/chat/messages                    — Send message
+  WS     /api/chat/ws/{user_uid}              — WebSocket for real-time
+
+UTILITY:
+  GET    /                        — API info
+  GET    /health                  — Health check
+  GET    /docs                    — Swagger UI
+
+================================================================================
+PRODUCTION DEPLOYMENT TIPS
+================================================================================
+
+1. MONGODB ATLAS:
+   - Upgrade from M0 to M10+ for production
+   - Enable backup (automatic daily)
+   - Restrict network access to server IP only
+   - Enable database auditing
+
+2. FASTAPI:
+   - Use gunicorn with uvicorn workers:
+     gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker
+   - Set ALLOWED_ORIGINS to your production domain only
+   - Use HTTPS (deploy behind Nginx or load balancer)
+   - Set environment: ENVIRONMENT=production
+
+3. FLUTTER:
+   - Update API_BASE_URL to production backend URL
+   - Build for release: flutter build web --release
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+ERROR: "ServerSelectionTimeoutError"
+  → Check MONGODB_URI in .env is correct
+  → Check Network Access allows your IP in Atlas Console
+  → Check cluster is running (not paused)
+
+ERROR: "Authentication failed"
+  → Verify username/password in connection string
+  → Special characters in password? URL-encode them
+  → Re-create database user if needed
+
+ERROR: "CORS error" in browser
+  → Add your Flutter dev URL to ALLOWED_ORIGINS in backend/.env
+  → Restart backend after changing .env
+
+ERROR: "Connection refused" from Flutter
+  → Backend running? Check: curl http://localhost:8000/health
+  → Android emulator? Use 10.0.2.2 instead of localhost
+  → Physical device? Use your computer's LAN IP
+
+ERROR: "pymongo.errors.ConfigurationError: dnspython must be installed"
+  → pip install dnspython
+
+================================================================================

@@ -3,8 +3,15 @@ import '../../config/colors.dart';
 import '../../config/typography.dart';
 import '../../config/responsive.dart';
 
-class SpEarningsScreen extends StatelessWidget {
+class SpEarningsScreen extends StatefulWidget {
   const SpEarningsScreen({super.key});
+
+  @override
+  State<SpEarningsScreen> createState() => _SpEarningsScreenState();
+}
+
+class _SpEarningsScreenState extends State<SpEarningsScreen> {
+  String _selectedPeriod = 'This Month';
 
   @override
   Widget build(BuildContext context) {
@@ -22,6 +29,12 @@ class SpEarningsScreen extends StatelessWidget {
               Text('Track your income and payouts', style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiary)),
               const SizedBox(height: 22),
               _buildTotalEarningsCard(isMobile),
+              const SizedBox(height: 22),
+              _buildPendingPayoutCard(),
+              const SizedBox(height: 22),
+              _buildPeriodSelector(),
+              const SizedBox(height: 22),
+              _buildWeeklyEarningsChart(),
               const SizedBox(height: 22),
               _buildQuickStats(isMobile),
               const SizedBox(height: 28),
@@ -112,22 +125,22 @@ class SpEarningsScreen extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 16),
-                Text('\u20B92,45,800', style: AppTypography.displayLarge.copyWith(color: Colors.white, fontWeight: FontWeight.w800, fontSize: isMobile ? 30 : 38)),
+                Text('₹2,45,800', style: AppTypography.displayLarge.copyWith(color: Colors.white, fontWeight: FontWeight.w800, fontSize: isMobile ? 30 : 38)),
                 const SizedBox(height: 20),
                 isMobile
                     ? Column(
                         children: [
                           Row(
                             children: [
-                              _earningPill('This Month', '\u20B924,500', Icons.calendar_today_rounded, AppColors.primary),
+                              _earningPill('This Month', '₹24,500', Icons.calendar_today_rounded, AppColors.primary),
                               const SizedBox(width: 10),
-                              _earningPill('Pending', '\u20B94,200', Icons.schedule_rounded, AppColors.amber),
+                              _earningPill('Pending', '₹4,200', Icons.schedule_rounded, AppColors.amber),
                             ],
                           ),
                           const SizedBox(height: 10),
                           Row(
                             children: [
-                              _earningPill('Withdrawn', '\u20B92.1L', Icons.arrow_upward_rounded, const Color(0xFF8B5CF6)),
+                              _earningPill('Withdrawn', '₹2.1L', Icons.arrow_upward_rounded, const Color(0xFF8B5CF6)),
                               const Spacer(),
                             ],
                           ),
@@ -135,14 +148,194 @@ class SpEarningsScreen extends StatelessWidget {
                       )
                     : Row(
                         children: [
-                          _earningPill('This Month', '\u20B924,500', Icons.calendar_today_rounded, AppColors.primary),
+                          _earningPill('This Month', '₹24,500', Icons.calendar_today_rounded, AppColors.primary),
                           const SizedBox(width: 12),
-                          _earningPill('Pending', '\u20B94,200', Icons.schedule_rounded, AppColors.amber),
+                          _earningPill('Pending', '₹4,200', Icons.schedule_rounded, AppColors.amber),
                           const SizedBox(width: 12),
-                          _earningPill('Withdrawn', '\u20B92.1L', Icons.arrow_upward_rounded, const Color(0xFF8B5CF6)),
+                          _earningPill('Withdrawn', '₹2.1L', Icons.arrow_upward_rounded, const Color(0xFF8B5CF6)),
+                          const Spacer(),
+                          _buildWithdrawButton(),
                         ],
                       ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWithdrawButton() {
+    return Material(
+      color: AppColors.primary,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: () {},
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.arrow_upward_rounded, size: 16, color: Colors.white),
+              const SizedBox(width: 6),
+              Text('Withdraw', style: AppTypography.labelSmall.copyWith(color: Colors.white, fontSize: 12)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPendingPayoutCard() {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border.withOpacity(0.5)),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 3))],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: AppColors.amber.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(Icons.schedule_rounded, size: 24, color: AppColors.amber),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Pending Payout', style: AppTypography.labelMedium),
+                const SizedBox(height: 4),
+                Text('Withdraws every Friday', style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiary, fontSize: 11)),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text('₹4,200', style: AppTypography.labelLarge.copyWith(color: AppColors.amber)),
+              Text('Next: 31 Mar', style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiary, fontSize: 10)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPeriodSelector() {
+    final periods = ['This Week', 'This Month', 'All Time'];
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: periods.map((period) {
+          final isSelected = _selectedPeriod == period;
+          return Padding(
+            padding: EdgeInsets.only(right: period != periods.last ? 10 : 0),
+            child: Material(
+              color: isSelected ? AppColors.primary : Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              child: InkWell(
+                onTap: () => setState(() => _selectedPeriod = period),
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  child: Text(
+                    period,
+                    style: AppTypography.labelSmall.copyWith(
+                      color: isSelected ? Colors.white : AppColors.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildWeeklyEarningsChart() {
+    final data = [
+      {'day': 'Mon', 'amount': 1200, 'pct': 0.38},
+      {'day': 'Tue', 'amount': 1500, 'pct': 0.47},
+      {'day': 'Wed', 'amount': 800, 'pct': 0.25},
+      {'day': 'Thu', 'amount': 2100, 'pct': 0.66},
+      {'day': 'Fri', 'amount': 1800, 'pct': 0.57},
+      {'day': 'Sat', 'amount': 2400, 'pct': 0.75},
+      {'day': 'Sun', 'amount': 1600, 'pct': 0.50},
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border.withOpacity(0.5)),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 3))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Weekly Earnings', style: AppTypography.labelMedium),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 180,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: data.map((item) {
+                return Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Text(
+                          '₹${item['amount']}',
+                          style: AppTypography.labelSmall.copyWith(color: AppColors.textSecondary, fontSize: 9),
+                        ),
+                        const SizedBox(height: 6),
+                        Expanded(
+                          child: Container(
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+                              child: FractionallySizedBox(
+                                heightFactor: item['pct'] as double,
+                                alignment: Alignment.bottomCenter,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [AppColors.primary.withOpacity(0.6), AppColors.primary],
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(item['day'] as String, style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary, fontSize: 10)),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
             ),
           ),
         ],
@@ -187,7 +380,7 @@ class SpEarningsScreen extends StatelessWidget {
 
   Widget _buildQuickStats(bool isMobile) {
     final stats = [
-      {'label': 'Avg per Job', 'value': '\u20B91,580', 'icon': Icons.receipt_long_rounded, 'color': AppColors.primary},
+      {'label': 'Avg per Job', 'value': '₹1,580', 'icon': Icons.receipt_long_rounded, 'color': AppColors.primary},
       {'label': 'Jobs This Month', 'value': '18', 'icon': Icons.work_history_rounded, 'color': AppColors.info},
       {'label': 'Repeat Clients', 'value': '72%', 'icon': Icons.people_rounded, 'color': const Color(0xFF8B5CF6)},
     ];
@@ -248,10 +441,10 @@ class SpEarningsScreen extends StatelessWidget {
 
   Widget _buildEarningsBreakdown(bool isMobile) {
     final items = [
-      {'service': 'Home Cleaning', 'earnings': '\u20B912,400', 'jobs': '12', 'pct': 0.31, 'color': AppColors.primary, 'icon': Icons.cleaning_services_rounded},
-      {'service': 'Deep Cleaning', 'earnings': '\u20B98,600', 'jobs': '5', 'pct': 0.22, 'color': AppColors.info, 'icon': Icons.dry_cleaning_rounded},
-      {'service': 'Painting', 'earnings': '\u20B915,200', 'jobs': '4', 'pct': 0.38, 'color': const Color(0xFFF59E0B), 'icon': Icons.format_paint_rounded},
-      {'service': 'Repairs', 'earnings': '\u20B93,800', 'jobs': '6', 'pct': 0.09, 'color': const Color(0xFF8B5CF6), 'icon': Icons.build_rounded},
+      {'service': 'Home Cleaning', 'earnings': '₹12,400', 'jobs': '12', 'pct': 0.31, 'color': AppColors.primary, 'icon': Icons.cleaning_services_rounded},
+      {'service': 'Deep Cleaning', 'earnings': '₹8,600', 'jobs': '5', 'pct': 0.22, 'color': AppColors.info, 'icon': Icons.dry_cleaning_rounded},
+      {'service': 'Painting', 'earnings': '₹15,200', 'jobs': '4', 'pct': 0.38, 'color': const Color(0xFFF59E0B), 'icon': Icons.format_paint_rounded},
+      {'service': 'Repairs', 'earnings': '₹3,800', 'jobs': '6', 'pct': 0.09, 'color': const Color(0xFF8B5CF6), 'icon': Icons.build_rounded},
     ];
 
     return Column(
@@ -259,7 +452,6 @@ class SpEarningsScreen extends StatelessWidget {
       children: [
         _buildSectionHeader('Revenue by Service'),
         const SizedBox(height: 14),
-        // Progress bar
         Container(
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
@@ -269,7 +461,6 @@ class SpEarningsScreen extends StatelessWidget {
           ),
           child: Column(
             children: [
-              // Combined bar
               ClipRRect(
                 borderRadius: BorderRadius.circular(6),
                 child: SizedBox(
@@ -286,7 +477,6 @@ class SpEarningsScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 18),
-              // Details
               ...items.map((item) => Padding(
                 padding: EdgeInsets.only(bottom: item != items.last ? 14 : 0),
                 child: Row(
@@ -328,14 +518,20 @@ class SpEarningsScreen extends StatelessWidget {
   }
 
   Widget _buildTransactionsList() {
-    final transactions = [
-      {'title': 'Home Cleaning', 'subtitle': 'Rahul Sharma', 'date': '27 Mar', 'amount': '+\u20B91,500', 'type': 'credit', 'icon': Icons.cleaning_services_rounded},
-      {'title': 'Platform Fee', 'subtitle': 'Service charge', 'date': '27 Mar', 'amount': '-\u20B9150', 'type': 'debit', 'icon': Icons.receipt_rounded},
-      {'title': 'Deep Cleaning', 'subtitle': 'Meera Joshi', 'date': '26 Mar', 'amount': '+\u20B92,800', 'type': 'credit', 'icon': Icons.dry_cleaning_rounded},
-      {'title': 'Bank Withdrawal', 'subtitle': 'HDFC ****1234', 'date': '25 Mar', 'amount': '-\u20B910,000', 'type': 'debit', 'icon': Icons.account_balance_rounded},
-      {'title': 'Painting Work', 'subtitle': 'Priya Patel', 'date': '25 Mar', 'amount': '+\u20B95,200', 'type': 'credit', 'icon': Icons.format_paint_rounded},
-      {'title': 'Plumbing Repair', 'subtitle': 'Arjun Reddy', 'date': '24 Mar', 'amount': '+\u20B9800', 'type': 'credit', 'icon': Icons.plumbing_rounded},
-    ];
+    final transactionsByDate = {
+      'Today': [
+        {'title': 'Home Cleaning', 'subtitle': 'Rahul Sharma', 'amount': '+₹1,500', 'type': 'credit', 'icon': Icons.cleaning_services_rounded},
+        {'title': 'Platform Fee', 'subtitle': 'Service charge', 'amount': '-₹150', 'type': 'debit', 'icon': Icons.receipt_rounded},
+      ],
+      'Yesterday': [
+        {'title': 'Deep Cleaning', 'subtitle': 'Meera Joshi', 'amount': '+₹2,800', 'type': 'credit', 'icon': Icons.dry_cleaning_rounded},
+        {'title': 'Bank Withdrawal', 'subtitle': 'HDFC ****1234', 'amount': '-₹10,000', 'type': 'debit', 'icon': Icons.account_balance_rounded},
+      ],
+      'Mar 25': [
+        {'title': 'Painting Work', 'subtitle': 'Priya Patel', 'amount': '+₹5,200', 'type': 'credit', 'icon': Icons.format_paint_rounded},
+        {'title': 'Plumbing Repair', 'subtitle': 'Arjun Reddy', 'amount': '+₹800', 'type': 'credit', 'icon': Icons.plumbing_rounded},
+      ],
+    };
 
     return Container(
       decoration: BoxDecoration(
@@ -344,54 +540,66 @@ class SpEarningsScreen extends StatelessWidget {
         border: Border.all(color: AppColors.border.withOpacity(0.5)),
       ),
       child: Column(
-        children: transactions.asMap().entries.map((e) {
-          final t = e.value;
-          final isCredit = t['type'] == 'credit';
-          final isLast = e.key == transactions.length - 1;
+        children: transactionsByDate.entries.toList().asMap().entries.map((dateEntry) {
+          final dateLabel = dateEntry.value.key;
+          final transactions = dateEntry.value.value as List<Map<String, dynamic>>;
+          final isLastDate = dateEntry.key == transactionsByDate.length - 1;
 
           return Column(
             children: [
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                child: Row(
+                padding: const EdgeInsets.fromLTRB(18, 14, 18, 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(dateLabel, style: AppTypography.labelSmall.copyWith(color: AppColors.textTertiary, fontSize: 11)),
+                ),
+              ),
+              ...transactions.asMap().entries.map((tEntry) {
+                final t = tEntry.value;
+                final isCredit = t['type'] == 'credit';
+                final isLastTrans = tEntry.key == transactions.length - 1;
+
+                return Column(
                   children: [
-                    Container(
-                      width: 42,
-                      height: 42,
-                      decoration: BoxDecoration(
-                        color: isCredit ? AppColors.primaryExtraLight : AppColors.errorLight,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(t['icon'] as IconData, size: 20, color: isCredit ? AppColors.primary : AppColors.error),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                      child: Row(
                         children: [
-                          Text(t['title'] as String, style: AppTypography.labelMedium),
-                          const SizedBox(height: 2),
-                          Text(t['subtitle'] as String, style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiary, fontSize: 11)),
+                          Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              color: isCredit ? AppColors.primaryExtraLight : AppColors.errorLight,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(t['icon'] as IconData, size: 20, color: isCredit ? AppColors.primary : AppColors.error),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(t['title'] as String, style: AppTypography.labelMedium),
+                                const SizedBox(height: 2),
+                                Text(t['subtitle'] as String, style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiary, fontSize: 11)),
+                              ],
+                            ),
+                          ),
+                          Text(
+                            t['amount'] as String,
+                            style: AppTypography.labelLarge.copyWith(
+                              color: isCredit ? AppColors.primary : AppColors.error,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                         ],
                       ),
                     ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          t['amount'] as String,
-                          style: AppTypography.labelLarge.copyWith(
-                            color: isCredit ? AppColors.primary : AppColors.error,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        Text(t['date'] as String, style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiary, fontSize: 10)),
-                      ],
-                    ),
+                    if (!isLastTrans) Divider(height: 1, indent: 74, color: AppColors.border.withOpacity(0.5)),
                   ],
-                ),
-              ),
-              if (!isLast) Divider(height: 1, indent: 74, color: AppColors.border.withOpacity(0.5)),
+                );
+              }).toList(),
+              if (!isLastDate) Divider(height: 1, color: AppColors.divider),
             ],
           );
         }).toList(),

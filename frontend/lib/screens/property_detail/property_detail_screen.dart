@@ -6,6 +6,8 @@ import '../../config/responsive.dart';
 import '../../config/assets.dart';
 import '../../models/property.dart';
 import '../../widgets/footer/app_footer.dart';
+import '../../services/chat_service.dart';
+import '../chat/chat_detail_screen.dart';
 import 'widgets/photo_gallery.dart';
 
 class PropertyDetailScreen extends StatefulWidget {
@@ -766,6 +768,57 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
   }
 
   // ═══════════════════════════════════════════════════════════════
+  // CHAT WITH AGENT — Navigate to chat detail screen
+  // ═══════════════════════════════════════════════════════════════
+  void _openChatWithAgent() async {
+    // Show loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+    );
+
+    try {
+      final chatService = ChatService.instance;
+      // Use owner's Firebase UID if available, fall back to property ID
+      final agentUid = property.ownerUid.isNotEmpty ? property.ownerUid : 'agent_${property.id}';
+      final agentName = property.ownerName.isNotEmpty ? property.ownerName : 'Property Agent';
+
+      // Create or get existing conversation via API
+      final conv = await chatService.createOrGetConversation(
+        propertyId: property.id,
+        propertyTitle: property.title,
+        participantUid: agentUid,
+        participantName: agentName,
+      );
+
+      if (!mounted) return;
+      Navigator.pop(context); // close loading
+
+      final conversation = ChatConversation(
+        id: conv['id'] as String? ?? '',
+        name: property.ownerName.isNotEmpty ? property.ownerName : 'Property Agent',
+        property: property.title,
+        isOnline: true,
+      );
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => ChatDetailScreen(conversation: conversation)),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context); // close loading
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not start chat: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
   // CONTACT — DESKTOP (sticky right column)
   // ═══════════════════════════════════════════════════════════════
   Widget _buildDesktopContactCard() {
@@ -831,31 +884,11 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
             height: 50,
           ),
           const SizedBox(height: 12),
-          // WhatsApp
-          _fullWidthButton(
-            icon: SvgPicture.asset(AppAssets.icWhatsapp, width: 18, height: 18, colorFilter: const ColorFilter.mode(Color(0xFF25D366), BlendMode.srcIn)),
-            label: 'WhatsApp',
-            onPressed: () {},
-            borderColor: const Color(0xFF25D366),
-            textColor: const Color(0xFF25D366),
-            height: 46,
-          ),
-          const SizedBox(height: 12),
-          // Email
-          _fullWidthButton(
-            icon: const Icon(Icons.email_outlined, size: 18, color: AppColors.info),
-            label: 'Email',
-            onPressed: () {},
-            borderColor: AppColors.info,
-            textColor: AppColors.info,
-            height: 46,
-          ),
-          const SizedBox(height: 12),
           // Chat
           _fullWidthButton(
             icon: SvgPicture.asset(AppAssets.icMessage, width: 18, height: 18, colorFilter: const ColorFilter.mode(AppColors.info, BlendMode.srcIn)),
             label: 'Chat',
-            onPressed: () {},
+            onPressed: () => _openChatWithAgent(),
             borderColor: AppColors.info,
             textColor: AppColors.info,
             height: 46,
@@ -970,18 +1003,6 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
             ),
           ),
           const SizedBox(width: 8),
-          // WhatsApp
-          _bottomBarIcon(
-            SvgPicture.asset(AppAssets.icWhatsapp, width: 22, height: 22, colorFilter: const ColorFilter.mode(Color(0xFF25D366), BlendMode.srcIn)),
-            const Color(0xFF25D366),
-          ),
-          const SizedBox(width: 8),
-          // Email
-          _bottomBarIcon(
-            const Icon(Icons.email_outlined, size: 22, color: AppColors.amber),
-            AppColors.amber,
-          ),
-          const SizedBox(width: 8),
           // Chat
           _bottomBarIcon(
             SvgPicture.asset(AppAssets.icMessage, width: 22, height: 22, colorFilter: const ColorFilter.mode(AppColors.info, BlendMode.srcIn)),
@@ -1001,7 +1022,7 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withOpacity(0.3)),
       ),
-      child: IconButton(onPressed: () {}, icon: icon),
+      child: IconButton(onPressed: () => _openChatWithAgent(), icon: icon),
     );
   }
 

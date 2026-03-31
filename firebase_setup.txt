@@ -1,0 +1,218 @@
+================================================================================
+   YESTATEHUB — FIREBASE SETUP GUIDE (Google Authentication)
+================================================================================
+
+OVERVIEW
+--------
+Firebase provides Google Sign-In authentication. Users sign in on Flutter,
+Firebase issues an ID token, and the FastAPI backend verifies that token
+to protect API endpoints.
+
+================================================================================
+STEP 1: CREATE FIREBASE PROJECT
+================================================================================
+
+1. Go to https://console.firebase.google.com
+2. Click "Add project"
+3. Project name: YEstateHub (or your preferred name)
+4. Enable Google Analytics (optional) → Create Project
+5. Wait for project creation → Continue
+
+================================================================================
+STEP 2: ENABLE GOOGLE SIGN-IN
+================================================================================
+
+1. In Firebase Console → left sidebar → Build → Authentication
+2. Click "Get Started"
+3. Go to "Sign-in method" tab
+4. Click "Google" provider
+5. Toggle "Enable" ON
+6. Set Project public-facing name: "YEstateHub"
+7. Select a Support email (your email)
+8. Click "Save"
+9. Also enable "Email/Password" provider (same page, click it, toggle ON, save)
+
+================================================================================
+STEP 3: ADD WEB APP (for Flutter Web)
+================================================================================
+
+1. In Firebase Console → Project Overview (gear icon) → Project Settings
+2. Scroll down → "Your apps" section
+3. Click the Web icon (</>)
+4. App nickname: "YEstateHub Web"
+5. Check "Also set up Firebase Hosting" (optional)
+6. Click "Register app"
+7. You will see a firebaseConfig object like:
+
+   const firebaseConfig = {
+     apiKey: "AIzaSyB...YOUR_API_KEY",
+     authDomain: "yestatehub-xxxxx.firebaseapp.com",
+     projectId: "yestatehub-xxxxx",
+     storageBucket: "yestatehub-xxxxx.appspot.com",
+     messagingSenderId: "123456789",
+     appId: "1:123456789:web:abcdef123456"
+   };
+
+8. COPY THESE VALUES — you need them in Step 5
+
+================================================================================
+STEP 4: ADD ANDROID APP (for Flutter Android)
+================================================================================
+
+1. In Firebase Console → Project Settings → Your apps
+2. Click Android icon
+3. Android package name: com.yestatehub.app
+   (Must match your android/app/build.gradle applicationId)
+4. App nickname: "YEstateHub Android"
+5. Debug signing certificate SHA-1:
+   Run this in terminal:
+
+   cd android && ./gradlew signingReport
+
+   Copy the SHA-1 from the "debug" variant
+6. Click "Register app"
+7. Download google-services.json
+8. Place it in: frontend/android/app/google-services.json
+
+ANDROID BUILD FILES UPDATE:
+---------------------------
+a) frontend/android/build.gradle — add in buildscript.dependencies:
+   classpath 'com.google.gms:google-services:4.4.0'
+
+b) frontend/android/app/build.gradle — add at bottom:
+   apply plugin: 'com.google.gms.google-services'
+
+c) frontend/android/app/build.gradle — set minSdkVersion:
+   minSdkVersion 23  (required for Firebase Auth)
+
+================================================================================
+STEP 5: ADD IOS APP (for Flutter iOS)
+================================================================================
+
+1. In Firebase Console → Project Settings → Your apps
+2. Click iOS icon
+3. Bundle ID: com.yestatehub.app
+4. App nickname: "YEstateHub iOS"
+5. Download GoogleService-Info.plist
+6. Place it in: frontend/ios/Runner/GoogleService-Info.plist
+7. Open ios/Runner/Info.plist and add the REVERSED_CLIENT_ID
+   (found in GoogleService-Info.plist) as a URL scheme:
+
+   <key>CFBundleURLTypes</key>
+   <array>
+     <dict>
+       <key>CFBundleTypeRole</key>
+       <string>Editor</string>
+       <key>CFBundleURLSchemes</key>
+       <array>
+         <string>com.googleusercontent.apps.YOUR_REVERSED_CLIENT_ID</string>
+       </array>
+     </dict>
+   </array>
+
+================================================================================
+STEP 6: UPDATE FLUTTER CODE
+================================================================================
+
+1. Open frontend/lib/main.dart
+
+2. Replace the FirebaseOptions placeholder values with YOUR values from Step 3:
+
+   await Firebase.initializeApp(
+     options: const FirebaseOptions(
+       apiKey: 'YOUR_API_KEY',          // from firebaseConfig.apiKey
+       appId: 'YOUR_APP_ID',            // from firebaseConfig.appId
+       messagingSenderId: 'YOUR_SENDER_ID',  // from firebaseConfig.messagingSenderId
+       projectId: 'YOUR_PROJECT_ID',    // from firebaseConfig.projectId
+       authDomain: 'YOUR_PROJECT_ID.firebaseapp.com',
+     ),
+   );
+
+================================================================================
+STEP 7: GET FIREBASE SERVICE ACCOUNT KEY (for Backend)
+================================================================================
+
+1. In Firebase Console → Project Settings → Service accounts
+2. Click "Generate new private key"
+3. Download the JSON file
+4. Rename it to: firebase-service-account.json
+5. Place it in: backend/firebase-service-account.json
+
+IMPORTANT: NEVER commit this file to Git!
+Add to .gitignore:
+   backend/firebase-service-account.json
+
+================================================================================
+STEP 8: CONFIGURE FLUTTER WEB (index.html)
+================================================================================
+
+Open frontend/web/index.html and add before </body>:
+
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script>
+  firebase.initializeApp({
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT_ID.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
+  });
+</script>
+
+================================================================================
+STEP 9: TEST AUTHENTICATION
+================================================================================
+
+1. Run Flutter app:  cd frontend && flutter run -d chrome
+2. Click "Google" sign-in button
+3. Complete Google OAuth flow
+4. Check Firebase Console → Authentication → Users tab
+5. You should see the new user listed
+
+================================================================================
+STEP 10: CONFIGURE AUTHORIZED DOMAINS
+================================================================================
+
+1. Firebase Console → Authentication → Settings
+2. Under "Authorized domains", add:
+   - localhost
+   - your-production-domain.com
+
+For Flutter Web running on custom ports, localhost is already allowed.
+
+================================================================================
+FILE STRUCTURE AFTER SETUP
+================================================================================
+
+frontend/
+  android/app/google-services.json        ← Step 4
+  ios/Runner/GoogleService-Info.plist      ← Step 5
+  lib/main.dart                            ← Step 6 (FirebaseOptions)
+  lib/services/auth_service.dart           ← Already created
+  web/index.html                           ← Step 8
+
+backend/
+  firebase-service-account.json            ← Step 7 (DO NOT COMMIT)
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+ERROR: "Google Sign-In failed: PlatformException(sign_in_failed)"
+  → Make sure SHA-1 is added in Firebase Console for Android
+  → For web: check authorized domains
+
+ERROR: "Firebase App not initialized"
+  → Ensure Firebase.initializeApp() runs before runApp()
+  → For web: add Firebase scripts in index.html
+
+ERROR: "Token verification failed" (backend)
+  → Check firebase-service-account.json path in backend/.env
+  → Ensure the service account belongs to the same Firebase project
+
+ERROR: "auth/configuration-not-found"
+  → Enable Google provider in Firebase Console → Authentication → Sign-in method
+
+================================================================================

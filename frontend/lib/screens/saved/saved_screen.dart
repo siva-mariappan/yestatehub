@@ -3,6 +3,7 @@ import '../../config/colors.dart';
 import '../../config/typography.dart';
 import '../../config/responsive.dart';
 import '../../data/mock_data.dart';
+import '../../services/property_store.dart';
 import '../../widgets/common/property_card.dart';
 
 class SavedScreen extends StatelessWidget {
@@ -29,7 +30,7 @@ class SavedScreen extends StatelessWidget {
                     Text('Saved Properties', style: AppTypography.displaySmall),
                     const SizedBox(height: 4),
                     Text(
-                      '${MockData.featuredProperties.length} properties saved',
+                      '${PropertyStore.instance.properties.length} properties saved',
                       style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondary),
                     ),
                   ],
@@ -48,12 +49,12 @@ class SavedScreen extends StatelessWidget {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 14),
                     child: PropertyCard(
-                      property: MockData.featuredProperties[index],
+                      property: PropertyStore.instance.properties[index],
                       onTap: () {},
                     ),
                   );
                 },
-                childCount: MockData.featuredProperties.length.clamp(0, 3),
+                childCount: PropertyStore.instance.properties.length.clamp(0, 3),
               ),
             ),
           )
@@ -73,10 +74,10 @@ class SavedScreen extends StatelessWidget {
                       mainAxisSpacing: 20,
                       childAspectRatio: gridCols == 1 ? 0.85 : gridCols == 2 ? 0.68 : 0.72,
                     ),
-                    itemCount: MockData.featuredProperties.length.clamp(0, 12),
+                    itemCount: PropertyStore.instance.properties.length.clamp(0, 12),
                     itemBuilder: (context, index) {
                       return PropertyCard(
-                        property: MockData.featuredProperties[index],
+                        property: PropertyStore.instance.properties[index],
                         onTap: () {},
                       );
                     },
